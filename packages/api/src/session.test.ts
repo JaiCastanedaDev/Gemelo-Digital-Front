@@ -190,3 +190,89 @@ describe('createSessionManager', () => {
     });
   });
 });
+
+describe('respuestas tardías (carreras con logout y cambio de usuario)', () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  }
+
+  it('un refresh en vuelo que responde 200 después de logout no revive la sesión', async () => {
+    const lateRefresh = deferred<Response>();
+    const { manager, store, scheduler } = setup((url) => {
+      if (url.endsWith('/auth/login')) return json(200, { ...tokens(1), user });
+      if (url.endsWith('/auth/refresh')) return lateRefresh.promise;
+      return json(200, {});
+    });
+    await manager.login('admin@demo.co', 'x');
+    const listener = vi.fn();
+    manager.subscribe(listener);
+    const refreshing = manager.refresh();
+    await manager.logout();
+    lateRefresh.resolve(json(200, tokens(2)));
+    await expect(refreshing).resolves.toBe(false);
+    expect(manager.getSession()).toBeNull();
+    expect(manager.getAccessToken()).toBeNull();
+    expect(store.getRefreshToken()).toBeNull();
+    expect(store.getUser()).toBeNull();
+    expect(scheduler.tasks).toHaveLength(0);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenLastCalledWith(null, 'logout');
+  });
+
+  it('un login en vuelo que responde después de logout no abre la sesión', async () => {
+    const lateLogin = deferred<Response>();
+    const { manager, store, scheduler } = setup((url) => (url.endsWith('/auth/login') ? lateLogin.promise : json(200, {})));
+    const logging = manager.login('admin@demo.co', 'x');
+    const outcome = logging.catch((e: unknown) => e);
+    await manager.logout();
+    lateLogin.resolve(json(200, { ...tokens(1), user }));
+    await expect(outcome).resolves.toBeInstanceOf(Error);
+    expect(manager.getSession()).toBeNull();
+    expect(store.getRefreshToken()).toBeNull();
+    expect(store.getUser()).toBeNull();
+    expect(scheduler.tasks).toHaveLength(0);
+  });
+
+  it('el refresh tardío del usuario A no pisa la sesión del usuario B que entró entretanto', async () => {
+    const lateRefresh = deferred<Response>();
+    let loginSub = 'usr-1';
+    let n = 0;
+    const { manager, store } = setup((url) => {
+      if (url.endsWith('/auth/refresh')) return lateRefresh.promise;
+      return json(200, { ...tokens(++n, loginSub), user });
+    });
+    await manager.login('admin@demo.co', 'x');
+    const refreshing = manager.refresh();
+    loginSub = 'usr-2';
+    await manager.login('otro@demo.co', 'x');
+    const refreshTokenOfB = store.getRefreshToken();
+    lateRefresh.resolve(json(200, tokens(99, 'usr-1')));
+    await expect(refreshing).resolves.toBe(false);
+    expect(manager.getSession()?.claims.sub).toBe('usr-2');
+    expect(store.getRefreshToken()).toBe(refreshTokenOfB);
+    expect(refreshTokenOfB).toBe('r-2');
+  });
+
+  it('un 401 tardío después de logout no emite "expired"', async () => {
+    const lateRefresh = deferred<Response>();
+    const { manager } = setup((url) => {
+      if (url.endsWith('/auth/login')) return json(200, { ...tokens(1), user });
+      if (url.endsWith('/auth/refresh')) return lateRefresh.promise;
+      return json(200, {});
+    });
+    await manager.login('admin@demo.co', 'x');
+    const listener = vi.fn();
+    manager.subscribe(listener);
+    const refreshing = manager.refresh();
+    await manager.logout();
+    lateRefresh.resolve(json(401, { error: { code: 'X', message: 'x' } }));
+    await expect(refreshing).resolves.toBe(false);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenLastCalledWith(null, 'logout');
+    await expect(manager.waitForReauth()).resolves.toBe(false);
+  });
+});

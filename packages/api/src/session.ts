@@ -104,6 +104,8 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
   let expired = false;
   let timer: unknown = null;
   let inflight: Promise<boolean> | null = null;
+  /** Generación de la sesión: cualquier respuesta de red que llegue de una generación anterior se descarta. */
+  let epoch = 0;
 
   async function postJson(path: string, body: unknown, accessToken?: string): Promise<Response> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' };
@@ -144,6 +146,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
   }
 
   function clear(reason: SessionEndReason) {
+    epoch++;
     cancelTimer();
     expired = reason === 'expired' && session !== null;
     session = null;
@@ -158,18 +161,22 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
       if (session) clear('expired');
       return false;
     }
+    const startEpoch = epoch;
+    const superseded = () => epoch !== startEpoch || store.getRefreshToken() !== refreshToken;
     let response: Response;
     try {
       response = await postJson('/auth/refresh', { refresh_token: refreshToken });
     } catch {
       return false; // red caída: se conserva la sesión y se reintenta en la próxima petición
     }
+    if (superseded()) return false; // logout o nuevo login mientras volaba la petición
     if (response.status === 401 || response.status === 403) {
       clear('expired');
       return false;
     }
     if (!response.ok) return false;
     const data = refreshResponseSchema.parse(await response.json());
+    if (superseded()) return false;
     apply(data, data.user ?? null);
     return true;
   }
@@ -195,9 +202,13 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
     getSession: () => session,
 
     async login(email, password) {
+      const startEpoch = ++epoch; // un login nuevo reemplaza cualquier refresh o login en vuelo
+      const cancelled = () => new Error('Inicio de sesión cancelado: la sesión cambió mientras se esperaba la respuesta');
       const response = await postJson('/auth/login', { email, password });
+      if (epoch !== startEpoch) throw cancelled();
       if (!response.ok) throw await apiErrorFromResponse(response);
       const data = loginResponseSchema.parse(await response.json());
+      if (epoch !== startEpoch) throw cancelled();
       return apply(data, data.user);
     },
 

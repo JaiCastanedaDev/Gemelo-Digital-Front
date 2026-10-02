@@ -5929,3 +5929,12 @@ git commit -m "test(web): E2E de sesión, roles, home y accesibilidad"
 | §9 Lenguaje de estados y localización | Tasks 3, 9 | Series y gráficas (Plan 3) |
 | §11 Responsive y accesibilidad | Tasks 9, 12, 14 | Revisión por sección en cada plan |
 | §12 Mocks y testing | Tasks 10, 14 | Series, ack, mantenimiento y PDF en mocks (Planes 2–5); `contract.spec` y CI (Plan 5) |
+
+## Notas de ejecución (2026-10-02)
+
+- R4 (ocultar al residente el conteo de sensores sin datos en el home) es una decisión de UX, no un control de privacidad: el residente puede derivar la cantidad de sensores caídos de forma aritmética. La garantía real es por endpoint: qué datos entrega cada uno al rol residente.
+- R5: el modo `lenient` de `@gd/api` ya no devuelve datos crudos; una respuesta que no pasa el esquema se reporta con `onContractDrift` y además lanza `ContractDriftError`, de modo que la sección se degrada a "formato inesperado" y los esquemas por rol (que quitan campos al residente) nunca se esquivan.
+- Supuestos del mock sin confirmar con backend: el 423 de cuenta bloqueada y el 429 con `Retry-After` en el login. Verificarlos contra el backend real.
+- Se conserva el `AGENTS.md` que generó la plantilla de turbo.
+- El lockfile contiene dos mayores de vite: `apps/web` usa vite 7 y vitest arrastra vite 8.
+- Plan 5, `contract.spec`: verificar los envoltorios `{count, data}` de las listas, los campos anulables del ack y la forma de la respuesta de `/auth/refresh`.

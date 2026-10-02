@@ -8,6 +8,9 @@ export interface AlertSound {
 
 type AudioContextCtor = new () => AudioContext;
 
+/** Tiempo máximo que `play()` espera a que el navegador reanude el audio. */
+export const RESUME_TIMEOUT_MS = 300;
+
 function defaultCtor(): AudioContextCtor | undefined {
   return typeof window === 'undefined' ? undefined : window.AudioContext;
 }
@@ -63,11 +66,29 @@ export function createAlertSound(getContextCtor: () => AudioContextCtor | undefi
     }
   }
 
+  /**
+   * Chrome y Firefox no rechazan `resume()` cuando el autoplay está bloqueado: la promesa
+   * queda pendiente hasta un gesto del usuario. Se compite contra un tiempo máximo y,
+   * si vence, no se reproduce nada aunque `resume()` se resuelva más tarde.
+   */
+  async function resumeWithin(ctx: AudioContext, timeoutMs: number): Promise<boolean> {
+    if (isRunning(ctx)) return true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), timeoutMs);
+    });
+    try {
+      return await Promise.race([resume(ctx), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   return {
     async play() {
       const ctx = getContext();
       if (!ctx) return 'unsupported';
-      if (!(await resume(ctx))) return 'blocked';
+      if (!(await resumeWithin(ctx, RESUME_TIMEOUT_MS))) return 'blocked';
       try {
         beep(ctx);
       } catch {

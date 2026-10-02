@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { createAlertSound } from './alertSound';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { RESUME_TIMEOUT_MS, createAlertSound } from './alertSound';
 
 class FakeAudioParam {
   setValueAtTime = vi.fn();
@@ -67,5 +67,86 @@ describe('createAlertSound', () => {
     const sound = createAlertSound(() => undefined);
     await expect(sound.play()).resolves.toBe('unsupported');
     await expect(sound.unlock()).resolves.toBe(false);
+  });
+});
+
+describe('createAlertSound con resume() que nunca se resuelve (Chrome/Firefox sin gesto)', () => {
+  function hangingContextCtor(resumeResult: 'pending' | 'fast') {
+    const created: HangingContext[] = [];
+    class HangingContext {
+      state: AudioContextState = 'suspended';
+      currentTime = 0;
+      destination = {};
+      oscillators: FakeNode[] = [];
+      settleResume: () => void = () => undefined;
+      constructor() {
+        created.push(this);
+      }
+      resume = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            const settle = () => {
+              this.state = 'running';
+              resolve();
+            };
+            if (resumeResult === 'fast') settle();
+            else this.settleResume = settle;
+          }),
+      );
+      createOscillator() {
+        const node = new FakeNode();
+        this.oscillators.push(node);
+        return node;
+      }
+      createGain() {
+        return new FakeNode();
+      }
+    }
+    return { Ctor: HangingContext as unknown as new () => AudioContext, created };
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('responde "blocked" tras RESUME_TIMEOUT_MS y no crea osciladores', async () => {
+    vi.useFakeTimers();
+    const { Ctor, created } = hangingContextCtor('pending');
+    const sound = createAlertSound(() => Ctor);
+    const result = sound.play();
+    await vi.advanceTimersByTimeAsync(RESUME_TIMEOUT_MS);
+    await expect(result).resolves.toBe('blocked');
+    expect(created[0]?.oscillators).toHaveLength(0);
+  });
+
+  it('si resume() se resuelve después de "blocked", no suena retroactivamente', async () => {
+    vi.useFakeTimers();
+    const { Ctor, created } = hangingContextCtor('pending');
+    const sound = createAlertSound(() => Ctor);
+    const result = sound.play();
+    await vi.advanceTimersByTimeAsync(RESUME_TIMEOUT_MS);
+    await expect(result).resolves.toBe('blocked');
+    created[0]?.settleResume();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(created[0]?.state).toBe('running');
+    expect(created[0]?.oscillators).toHaveLength(0);
+  });
+
+  it('si resume() resuelve a tiempo a "running", suena', async () => {
+    vi.useFakeTimers();
+    const { Ctor, created } = hangingContextCtor('fast');
+    const sound = createAlertSound(() => Ctor);
+    const result = sound.play();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(result).resolves.toBe('played');
+    expect(created[0]?.oscillators.length).toBeGreaterThan(0);
+  });
+
+  it('unlock espera resume() y después play() suena', async () => {
+    const { Ctor, created } = hangingContextCtor('fast');
+    const sound = createAlertSound(() => Ctor);
+    await expect(sound.unlock()).resolves.toBe(true);
+    await expect(sound.play()).resolves.toBe('played');
+    expect(created[0]?.oscillators.length).toBeGreaterThan(0);
   });
 });

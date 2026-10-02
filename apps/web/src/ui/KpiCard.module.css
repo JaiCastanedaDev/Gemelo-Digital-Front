@@ -1,0 +1,15 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+.card[data-tone='CRITICAL'] { border-left-color: var(--status-critical-fg); }
+.card[data-tone='WARNING'] { border-left-color: var(--status-warning-fg); }
+.card[data-tone='INFO'] { border-left-color: var(--status-info-fg); }
+.card[data-tone='OK'] { border-left-color: var(--status-ok-fg); }
+.card[data-tone='OFFLINE'] { border-left-color: var(--status-offline-fg); }
+.label { margin: 0; color: var(--text-muted); font-size: 0.875rem; }
+.value { margin: var(--space-1) 0 0; font-size: 1.75rem; font-weight: 700; }
+.hint { margin: var(--space-1) 0 0; color: var(--text-muted); font-size: 0.875rem; }

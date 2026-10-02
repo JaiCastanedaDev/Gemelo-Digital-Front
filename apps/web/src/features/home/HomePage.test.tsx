@@ -53,6 +53,39 @@ describe('HomePage', () => {
     expect(screen.queryByText('Sensores sin datos')).not.toBeInTheDocument();
   });
 
+  it('el residente no ve el conteo ni los puntos de sensores sin datos en el desglose', async () => {
+    resetDb('critico');
+    const services = createTestServices();
+    await loginAs(services, 'residente');
+    renderApp(services, '/');
+    const region = await scoreRegion();
+    expect(await region.findByText('sensores sin datos')).toBeInTheDocument();
+    const text = screen.getByRole('region', { name: 'Salud del edificio' }).textContent ?? '';
+    expect(text).not.toMatch(/\d+\s+sensor(es)?\s+sin datos/);
+    expect(text).not.toContain('−5 · ');
+  });
+
+  it('el residente no ve cuántos sensores están caídos en el escenario caído', async () => {
+    resetDb('caido');
+    const services = createTestServices();
+    await loginAs(services, 'residente');
+    renderApp(services, '/');
+    const region = await scoreRegion();
+    expect(await region.findByText('sensores sin datos')).toBeInTheDocument();
+    const text = screen.getByRole('region', { name: 'Salud del edificio' }).textContent ?? '';
+    expect(text).not.toContain('−30');
+    expect(text).not.toContain('6 sensores');
+  });
+
+  it('el administrador sigue viendo el conteo y los puntos de sensores sin datos', async () => {
+    resetDb('caido');
+    const services = createTestServices();
+    await loginAs(services, 'admin');
+    renderApp(services, '/');
+    const region = await scoreRegion();
+    expect(await region.findByText('−30 · 6 sensores sin datos')).toBeInTheDocument();
+  });
+
   it('acota un puntaje inválido del backend', async () => {
     server.use(
       http.get('*/api/v1/dashboard/general', () =>

@@ -25,7 +25,7 @@ export function HomePage() {
       <section className={styles.card} aria-labelledby="health-title">
         <h2 id="health-title">Salud del edificio</h2>
         <DataState label="salud del edificio" query={general} staleAfterMs={POLL_INTERVALS_MS.dashboardGeneral * 2}>
-          {(data) => <HealthScoreCard data={data} now={now} />}
+          {(data) => <HealthScoreCard data={data} now={now} isAdmin={isAdmin} />}
         </DataState>
       </section>
 

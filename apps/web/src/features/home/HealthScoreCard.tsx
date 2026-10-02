@@ -3,9 +3,9 @@ import { clampScore, healthBand, isStale, scoreBreakdown } from '@gd/domain';
 import { POLL_INTERVALS_MS } from '@gd/query';
 import { STATUS_META } from '../../ui/statusMeta';
 import styles from './Home.module.css';
-import { BAND_LABEL, BAND_TONE, deductionText } from './healthCopy';
+import { BAND_LABEL, BAND_TONE, deductionLine } from './healthCopy';
 
-export function HealthScoreCard({ data, now }: { data: DashboardGeneral; now: Date }) {
+export function HealthScoreCard({ data, now, isAdmin }: { data: DashboardGeneral; now: Date; isAdmin: boolean }) {
   const score = clampScore(data.health_score);
   const band = healthBand(score);
   const tone = BAND_TONE[band];
@@ -33,7 +33,7 @@ export function HealthScoreCard({ data, now }: { data: DashboardGeneral; now: Da
       {deductions.length > 0 ? (
         <ul className={styles.deductions} aria-label="Qué resta puntos">
           {deductions.map((d) => (
-            <li key={d.reason}>{`−${d.points} · ${deductionText(d)}`}</li>
+            <li key={d.reason}>{deductionLine(d, isAdmin)}</li>
           ))}
         </ul>
       ) : (

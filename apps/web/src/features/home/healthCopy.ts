@@ -14,6 +14,12 @@ export const BAND_TONE: Record<HealthBand, StatusLevel> = {
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
+/** Línea del desglose. El residente no ve cifras de sensores (solo el administrador). */
+export function deductionLine(deduction: ScoreDeduction, isAdmin: boolean): string {
+  if (deduction.reason === 'OFFLINE' && !isAdmin) return 'sensores sin datos';
+  return `−${deduction.points} · ${deductionText(deduction)}`;
+}
+
 export function deductionText(deduction: ScoreDeduction): string {
   const { count } = deduction;
   switch (deduction.reason) {

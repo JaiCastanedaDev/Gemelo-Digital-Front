@@ -1,0 +1,33 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+.card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-8) var(--space-6);
+}
+.card h1 { margin: 0 0 var(--space-2); font-size: 1.5rem; }
+.card > p { margin: 0 0 var(--space-6); color: var(--text-muted); }
+.form { display: grid; gap: var(--space-2); }
+.form input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  margin-bottom: var(--space-2);
+}
+.error {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--status-critical-bg);
+  color: var(--status-critical-fg);
+}

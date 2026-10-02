@@ -1,7 +1,7 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDb } from '../../mocks/db';
 import { emitMockAlert } from '../../mocks/emit';
 import { server } from '../../mocks/server';
@@ -267,10 +267,19 @@ describe('fallo del acuse que sobrevive al cierre del panel', () => {
     resetDb('critico');
     const { release, calls } = gatedFailingAck();
     const panel = await openDetail('admin', criticalId());
-    await confirmAck(panel);
+    await userEvent.click(panel.getByRole('button', { name: 'Marcar como revisada' }));
+    const confirm = within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Marcar como revisada' });
+    // Síncrono: la actualización optimista aún no ocurrió (onMutate espera a cancelQueries), pero el acuse ya está pendiente.
+    act(() => {
+      fireEvent.click(confirm);
+    });
+    const pendingTrigger = await waitFor(() => {
+      const button = panel.getByRole('button', { name: 'Marcar como revisada' });
+      expect(button).toBeDisabled();
+      return button;
+    });
+    expect(pendingTrigger).toBeDisabled();
     await waitFor(() => expect(fact(panel, 'Estado')).toHaveTextContent('Revisada'));
-    const trigger = panel.queryByRole('button', { name: 'Marcar como revisada' });
-    expect(trigger === null || (trigger as HTMLButtonElement).disabled).toBe(true);
     await act(async () => {
       release();
     });
@@ -306,6 +315,53 @@ describe('foco accesible del diálogo de confirmación', () => {
   });
 
   it('al confirmar, como el botón desaparece, el foco queda en el título del detalle', async () => {
+    resetDb('critico');
+    const panel = await openDetail('admin', criticalId());
+    await confirmAck(panel);
+    await waitFor(() => expect(fact(panel, 'Estado')).toHaveTextContent('Revisada'));
+    await waitFor(() => expect(panel.getByRole('heading', { name: 'Detalle de la alerta' })).toHaveFocus());
+  });
+});
+
+describe('diálogo de confirmación bajo StrictMode', () => {
+  beforeEach(() => {
+    configure({ reactStrictMode: true });
+  });
+  afterEach(() => {
+    configure({ reactStrictMode: false });
+  });
+
+  it('el foco inicial queda en Cancelar', async () => {
+    resetDb('critico');
+    const panel = await openDetail('admin', criticalId());
+    await userEvent.click(panel.getByRole('button', { name: 'Marcar como revisada' }));
+    expect(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar' })).toHaveFocus();
+  });
+
+  it('Tab y Shift+Tab ciclan dentro del diálogo', async () => {
+    resetDb('critico');
+    const panel = await openDetail('admin', criticalId());
+    await userEvent.click(panel.getByRole('button', { name: 'Marcar como revisada' }));
+    const dialog = within(screen.getByRole('alertdialog'));
+    const cancel = dialog.getByRole('button', { name: 'Cancelar' });
+    const confirm = dialog.getByRole('button', { name: 'Marcar como revisada' });
+    await userEvent.tab();
+    expect(confirm).toHaveFocus();
+    await userEvent.tab();
+    expect(cancel).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(confirm).toHaveFocus();
+  });
+
+  it('al cancelar el foco vuelve al botón que abrió el diálogo', async () => {
+    resetDb('critico');
+    const panel = await openDetail('admin', criticalId());
+    await userEvent.click(panel.getByRole('button', { name: 'Marcar como revisada' }));
+    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(panel.getByRole('button', { name: 'Marcar como revisada' })).toHaveFocus());
+  });
+
+  it('al confirmar el foco queda en el título del detalle', async () => {
     resetDb('critico');
     const panel = await openDetail('admin', criticalId());
     await confirmAck(panel);

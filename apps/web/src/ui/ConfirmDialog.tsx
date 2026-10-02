@@ -41,13 +41,22 @@ export function ConfirmDialog({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onCancel]);
 
-  useEffect(
-    () => () => {
-      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus();
-      else restoreRef.current?.()?.focus();
-    },
-    [opener],
-  );
+  // Bajo StrictMode React simula montar → desmontar → montar: el foco solo se restaura si, tras el desmontaje,
+  // el componente no volvió a montarse (comprobación diferida), y el foco inicial se reafirma en cada montaje.
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.contains(document.activeElement)) dialog.querySelector<HTMLElement>('button')?.focus();
+    return () => {
+      mountedRef.current = false;
+      queueMicrotask(() => {
+        if (mountedRef.current) return;
+        if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus();
+        else restoreRef.current?.()?.focus();
+      });
+    };
+  }, [opener]);
 
   function trapTab(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Tab') return;

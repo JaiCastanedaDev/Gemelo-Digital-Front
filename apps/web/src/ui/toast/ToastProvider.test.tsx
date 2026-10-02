@@ -85,6 +85,29 @@ describe('toasts', () => {
   });
 });
 
+describe('clear', () => {
+  it('quita todas las notificaciones y cancela los temporizadores', () => {
+    const { show, criticalRegion, warningRegion } = renderToasts();
+    show(critical('a1'));
+    show(warning('w1'));
+    act(() => api?.clear());
+    expect(criticalRegion()).toBeEmptyDOMElement();
+    expect(warningRegion()).toBeEmptyDOMElement();
+
+    // Un temporizador huérfano de w1 no debe quitar un toast nuevo con el mismo id.
+    show(critical('w1', 'nueva'));
+    act(() => vi.advanceTimersByTime(WARNING_TOAST_MS + 1));
+    expect(criticalRegion()).toHaveTextContent('nueva');
+  });
+
+  it('es referencialmente estable entre renders', () => {
+    const { show } = renderToasts();
+    const first = api?.clear;
+    show(critical('a1'));
+    expect(api?.clear).toBe(first);
+  });
+});
+
 describe('capToasts', () => {
   it('descarta primero la advertencia más antigua', () => {
     const list = [critical('c3'), warning('w2'), critical('c1'), warning('w1')];

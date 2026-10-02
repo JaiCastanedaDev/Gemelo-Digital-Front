@@ -7,7 +7,7 @@ import { useSession } from '../../app/session/SessionProvider';
 import { useToasts } from '../../ui/toast/ToastProvider';
 import { createAlertSound, type AlertSound } from './alertSound';
 import { alertToast } from './alertToast';
-import { useTitleBadge } from './titleBadge';
+import { BASE_TITLE, useTitleBadge } from './titleBadge';
 
 interface RealtimeContextValue {
   status: RealtimeStatus;
@@ -26,7 +26,7 @@ interface RealtimeProviderProps {
 export function RealtimeProvider({ createRealtime, sound, children }: RealtimeProviderProps) {
   const { status: sessionStatus, session } = useSession();
   const queryClient = useQueryClient();
-  const { show } = useToasts();
+  const { show, clear } = useToasts();
   const notifyTitle = useTitleBadge();
   const [alertSound] = useState<AlertSound>(() => sound ?? createAlertSound());
   const [status, setStatus] = useState<RealtimeStatus>('idle');
@@ -65,6 +65,19 @@ export function RealtimeProvider({ createRealtime, sound, children }: RealtimePr
   useEffect(() => {
     accessTokenRef.current = accessToken;
   }, [accessToken]);
+
+  // Nada de un usuario debe verlo otro: al cerrar sesión o cambiar de usuario se limpian las
+  // notificaciones y el título. Con 'expired' el mismo usuario vuelve a la misma pantalla: se conservan.
+  const lastSubRef = useRef<string | null>(null);
+  useEffect(() => {
+    const differentUser = sub !== null && lastSubRef.current !== null && lastSubRef.current !== sub;
+    if (sessionStatus === 'anonymous' || differentUser) {
+      clear();
+      document.title = BASE_TITLE;
+    }
+    if (sessionStatus === 'anonymous') lastSubRef.current = null;
+    else if (sub !== null) lastSubRef.current = sub;
+  }, [sessionStatus, sub, clear]);
 
   // Un cliente por usuario y rol mientras la sesión está activa.
   useEffect(() => {

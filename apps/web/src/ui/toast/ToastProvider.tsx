@@ -22,6 +22,8 @@ interface ToastContextValue {
   toasts: ToastInput[];
   show(toast: ToastInput): void;
   dismiss(id: string): void;
+  /** Quita todas las notificaciones y cancela sus temporizadores (p. ej. al cambiar de usuario). */
+  clear(): void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -67,6 +69,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
 
+  const clear = useCallback(() => {
+    for (const timer of timersRef.current.values()) clearTimeout(timer);
+    timersRef.current.clear();
+    setToasts((prev) => (prev.length === 0 ? prev : []));
+  }, []);
+
   useEffect(() => {
     const timers = timersRef.current;
     return () => {
@@ -75,7 +83,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => ({ toasts, show, dismiss }), [toasts, show, dismiss]);
+  const value = useMemo(() => ({ toasts, show, dismiss, clear }), [toasts, show, dismiss, clear]);
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 

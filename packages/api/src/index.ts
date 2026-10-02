@@ -8,3 +8,4 @@ export * from './errors';
 export * from './http';
 export * from './jwt';
 export * from './session';
+export * from './endpoints';

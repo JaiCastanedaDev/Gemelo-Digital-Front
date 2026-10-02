@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router';
 import { LoginPage } from '../features/auth/LoginPage';
+import { HomePage } from '../features/home/HomePage';
 import { RequireAuth } from './guards/RequireAuth';
 import { RequireRole } from './guards/RequireRole';
 import { AppShell } from './layout/AppShell';
@@ -17,7 +18,7 @@ export function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<PendingSection title="Estado general" />} />
+        <Route index element={<HomePage />} />
         <Route path="alertas" element={<PendingSection title="Alertas" />} />
         <Route path="aire" element={<PendingSection title="Calidad del aire" />} />
         <Route element={<RequireRole roles={['ADMIN']} />}>

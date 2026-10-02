@@ -33,15 +33,23 @@ export function SessionProvider({ manager, children }: { manager: SessionManager
       });
     });
     let cancelled = false;
-    void manager.restore().then((restored) => {
-      if (cancelled) return;
-      if (restored) {
-        // Si la sesión ya existía antes de montar, restore() la devuelve sin emitir.
-        setState({ status: 'authenticated', session: restored });
-        return;
-      }
+    const toAnonymousIfRestoring = () =>
       setState((prev) => (prev.status === 'restoring' ? { status: 'anonymous', session: null } : prev));
-    });
+    manager
+      .restore()
+      .then((restored) => {
+        if (cancelled) return;
+        if (restored) {
+          // Si la sesión ya existía antes de montar, restore() la devuelve sin emitir.
+          setState({ status: 'authenticated', session: restored });
+          return;
+        }
+        toAnonymousIfRestoring();
+      })
+      .catch(() => {
+        // Nunca dejar la app en la pantalla de carga si restaurar la sesión falla de forma inesperada.
+        if (!cancelled) toAnonymousIfRestoring();
+      });
     return () => {
       cancelled = true;
       unsubscribe();

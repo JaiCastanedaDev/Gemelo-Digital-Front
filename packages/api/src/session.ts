@@ -50,12 +50,16 @@ export interface Scheduler {
 }
 
 export const REFRESH_MARGIN_SECONDS = 120;
+const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
 
 /** Cuándo renovar: 120 s antes de expirar, o a la mitad de la vida si el token es más corto que 2× el margen. */
 export function refreshDelayMs(expiresInSeconds: number): number {
-  return expiresInSeconds > REFRESH_MARGIN_SECONDS * 2
-    ? (expiresInSeconds - REFRESH_MARGIN_SECONDS) * 1000
-    : (expiresInSeconds * 1000) / 2;
+  const delay =
+    expiresInSeconds > REFRESH_MARGIN_SECONDS * 2
+      ? (expiresInSeconds - REFRESH_MARGIN_SECONDS) * 1000
+      : (expiresInSeconds * 1000) / 2;
+  // setTimeout usa un entero de 32 bits con signo: por encima de 2^31 - 1 ms dispara de inmediato.
+  return Math.min(delay, MAX_TIMER_DELAY_MS);
 }
 
 const claimsSchema = z.object({ sub: idSchema, role: roleSchema, buildingId: idSchema });
@@ -139,7 +143,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
     expired = false;
     cancelTimer();
     timer = scheduler.setTimeout(() => {
-      void refresh();
+      refresh().catch(() => {});
     }, refreshDelayMs(tokens.expires_in));
     emit();
     return session;
@@ -175,10 +179,16 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
       return false;
     }
     if (!response.ok) return false;
-    const data = refreshResponseSchema.parse(await response.json());
-    if (superseded()) return false;
-    apply(data, data.user ?? null);
-    return true;
+    try {
+      const data = refreshResponseSchema.parse(await response.json());
+      if (superseded()) return false;
+      apply(data, data.user ?? null);
+      return true;
+    } catch {
+      // Cuerpo no JSON, campos faltantes o JWT ilegible: se trata como un refresh rechazado.
+      if (!superseded()) clear('expired');
+      return false;
+    }
   }
 
   function refresh(): Promise<boolean> {
@@ -214,8 +224,12 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
 
     async restore() {
       if (session) return session;
-      const ok = await refresh();
-      return ok ? session : null;
+      try {
+        const ok = await refresh();
+        return ok ? session : null;
+      } catch {
+        return null;
+      }
     },
 
     refresh,

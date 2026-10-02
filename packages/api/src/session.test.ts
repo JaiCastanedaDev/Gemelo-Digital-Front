@@ -57,6 +57,9 @@ describe('refreshDelayMs', () => {
     expect(refreshDelayMs(60)).toBe(30_000);
     expect(refreshDelayMs(5)).toBe(2_500);
   });
+  it('limita el retraso al máximo de setTimeout (2^31 - 1 ms)', () => {
+    expect(refreshDelayMs(3_000_000)).toBe(2_147_483_647);
+  });
 });
 
 describe('createSessionManager', () => {
@@ -274,5 +277,86 @@ describe('respuestas tardías (carreras con logout y cambio de usuario)', () => 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenLastCalledWith(null, 'logout');
     await expect(manager.waitForReauth()).resolves.toBe(false);
+  });
+});
+
+describe('respuestas de refresh malformadas', () => {
+  const malformed: [string, () => Response][] = [
+    ['200 que no es JSON', () => new Response('<html>oops</html>', { status: 200 })],
+    ['200 JSON sin refresh_token ni token_type', () => json(200, { access_token: tokens(2).access_token, expires_in: 900 })],
+    ['200 con un access_token que no es un JWT', () => json(200, { ...tokens(2), access_token: 'no-es-un-jwt' })],
+  ];
+
+  async function withUnhandledRejections(run: () => Promise<void>) {
+    const seen: unknown[] = [];
+    const onUnhandled = (reason: unknown) => seen.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      await run();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+    return seen;
+  }
+
+  it.each(malformed)('refresh con %s resuelve false y cierra la sesión como "expired"', async (_name, bad) => {
+    const { manager, store } = setup((url) => (url.endsWith('/auth/login') ? json(200, { ...tokens(1), user }) : bad()));
+    await manager.login('admin@demo.co', 'x');
+    const listener = vi.fn();
+    manager.subscribe(listener);
+    await expect(manager.refresh()).resolves.toBe(false);
+    expect(manager.getSession()).toBeNull();
+    expect(store.getRefreshToken()).toBeNull();
+    expect(store.getUser()).toBeNull();
+    expect(listener).toHaveBeenLastCalledWith(null, 'expired');
+  });
+
+  it.each(malformed)('restore con %s resuelve null y limpia el refresh guardado', async (_name, bad) => {
+    const { manager, store } = setup(() => bad());
+    store.setRefreshToken('r-guardado');
+    store.setUser(user);
+    await expect(manager.restore()).resolves.toBeNull();
+    expect(store.getRefreshToken()).toBeNull();
+  });
+
+  it('el refresh disparado por el timer no produce rechazos sin manejar', async () => {
+    const { manager, scheduler } = setup((url) =>
+      url.endsWith('/auth/login') ? json(200, { ...tokens(1), user }) : new Response('no json', { status: 200 }),
+    );
+    await manager.login('admin@demo.co', 'x');
+    const seen = await withUnhandledRejections(async () => {
+      scheduler.runAll();
+      await vi.waitFor(() => expect(manager.getSession()).toBeNull());
+    });
+    expect(seen).toEqual([]);
+  });
+
+  it('una respuesta malformada que llega tras un logout no emite "expired"', async () => {
+    let release!: (response: Response) => void;
+    const late = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    const { manager } = setup((url) => {
+      if (url.endsWith('/auth/login')) return json(200, { ...tokens(1), user });
+      if (url.endsWith('/auth/refresh')) return late;
+      return json(200, {});
+    });
+    await manager.login('admin@demo.co', 'x');
+    const listener = vi.fn();
+    manager.subscribe(listener);
+    const refreshing = manager.refresh();
+    await manager.logout();
+    release(new Response('no json', { status: 200 }));
+    await expect(refreshing).resolves.toBe(false);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenLastCalledWith(null, 'logout');
+  });
+
+  it('con expires_in enorme no refresca de inmediato y programa el máximo permitido', async () => {
+    const { manager, scheduler, fetchMock } = setup(() => json(200, { ...tokens(1, 'usr-1', 3_000_000), user }));
+    await manager.login('admin@demo.co', 'x');
+    expect(scheduler.tasks.map((t) => t.ms)).toEqual([2_147_483_647]);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/auth/refresh'))).toHaveLength(0);
   });
 });

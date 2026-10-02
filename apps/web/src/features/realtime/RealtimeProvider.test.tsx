@@ -7,18 +7,9 @@ import { db, resetDb } from '../../mocks/db';
 import { emitMockAlert } from '../../mocks/emit';
 import { createMockRealtimeClient } from '../../mocks/realtime';
 import { realtimeBus } from '../../mocks/realtimeBus';
+import { homeReady } from '../../test/homeReady';
 import { createTestServices, loginAs, renderApp } from '../../test/renderApp';
 import type { AlertSound } from './alertSound';
-
-/**
- * Espera a que el home muestre el puntaje (datos cargados). La región existe desde el primer commit,
- * pero el cliente de tiempo real arranca en un efecto pasivo: esperar un render posterior garantiza
- * que ya está suscrito al bus antes de emitir.
- */
-async function homeReady() {
-  const region = await screen.findByRole('region', { name: 'Salud del edificio' });
-  await within(region).findByText(/^\d+$/);
-}
 
 function toastRegion() {
   return screen.getByRole('region', { name: 'Notificaciones' });

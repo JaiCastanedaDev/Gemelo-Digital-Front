@@ -1,0 +1,25 @@
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.indicator[data-kind='live'] { color: var(--status-ok-fg); }
+.indicator[data-kind='connecting'] { color: var(--status-warning-fg); }
+.indicator[data-kind='offline'] { color: var(--status-critical-fg); }
+.banner {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-fg);
+}
+.banner p { margin: 0; }
+@media (max-width: 767px) {
+  .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

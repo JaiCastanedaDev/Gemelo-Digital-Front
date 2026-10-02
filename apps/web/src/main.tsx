@@ -1,11 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter } from 'react-router';
 import { AppProviders } from './app/AppProviders';
 import { config } from './app/config';
+import { AppRoutes } from './app/routes';
 import { createServices } from './app/services';
 import { SessionStorageTokenStore, getSessionStorage } from './app/session/SessionStorageTokenStore';
-import { LoginPage } from './features/auth/LoginPage';
 import './ui/tokens.css';
 
 async function start() {
@@ -25,9 +25,7 @@ async function start() {
     <StrictMode>
       <BrowserRouter>
         <AppProviders services={services}>
-          <Routes>
-            <Route path="*" element={<LoginPage />} />
-          </Routes>
+          <AppRoutes />
         </AppProviders>
       </BrowserRouter>
     </StrictMode>,

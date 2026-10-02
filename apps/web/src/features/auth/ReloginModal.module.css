@@ -1,0 +1,19 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 0.5);
+  z-index: 100;
+}
+.dialog {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+}
+.dialog h2 { margin: 0 0 var(--space-2); }
+.dialog p { margin: 0 0 var(--space-4); color: var(--text-muted); }
+.logout { margin-top: var(--space-3); width: 100%; }

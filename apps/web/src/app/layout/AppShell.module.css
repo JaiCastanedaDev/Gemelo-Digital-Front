@@ -1,0 +1,79 @@
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: 56px 1fr;
+  grid-template-areas: 'header header' 'nav main';
+}
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: var(--space-4);
+  top: var(--space-2);
+  z-index: 10;
+  background: var(--surface);
+  padding: var(--space-2) var(--space-4);
+}
+.header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 700; }
+.user { display: flex; align-items: center; gap: var(--space-3); color: var(--text-muted); }
+.nav {
+  grid-area: nav;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: var(--space-2);
+}
+.nav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+.link[aria-current='page'] { background: var(--status-info-bg); color: var(--status-info-fg); font-weight: 600; }
+.main { grid-area: main; padding: var(--space-6); min-width: 0; }
+
+@media (max-width: 1023px) {
+  .shell { grid-template-columns: 72px 1fr; }
+  .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .link { justify-content: center; padding: 0; }
+}
+
+@media (max-width: 767px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px 1fr auto;
+    grid-template-areas: 'header' 'main' 'nav';
+  }
+  .nav {
+    position: sticky;
+    bottom: 0;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .nav ul { grid-auto-flow: column; grid-auto-columns: minmax(56px, 1fr); }
+  .main { padding: var(--space-4); }
+}

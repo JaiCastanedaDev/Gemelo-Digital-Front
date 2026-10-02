@@ -1,5 +1,9 @@
 import { MemoryTokenStore } from '@gd/api';
 import { QueryClient } from '@tanstack/react-query';
+import { render } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
+import { AppProviders } from '../app/AppProviders';
+import { AppRoutes } from '../app/routes';
 import { createServices, type Services } from '../app/services';
 import { ADMIN_EMAIL, DEMO_PASSWORD, RESIDENTE_EMAIL } from '../mocks/seed';
 
@@ -14,4 +18,14 @@ export function createTestServices(): Services {
 
 export async function loginAs(services: Services, who: 'admin' | 'residente'): Promise<void> {
   await services.session.login(who === 'admin' ? ADMIN_EMAIL : RESIDENTE_EMAIL, DEMO_PASSWORD);
+}
+
+export function renderApp(services: Services, route = '/') {
+  return render(
+    <AppProviders services={services}>
+      <MemoryRouter initialEntries={[route]}>
+        <AppRoutes />
+      </MemoryRouter>
+    </AppProviders>,
+  );
 }

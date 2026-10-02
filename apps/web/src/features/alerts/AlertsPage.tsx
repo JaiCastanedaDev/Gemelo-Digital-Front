@@ -55,7 +55,7 @@ export function AlertsPage() {
             {(data) => <AlertList alerts={visibleAlerts(data.data, view)} view={view} isAdmin={role === 'ADMIN'} />}
           </DataState>
         </section>
-        {view.alertId && <AlertDetailPanel alertId={view.alertId} role={role} onClose={closeDetail} />}
+        {view.alertId && <AlertDetailPanel key={view.alertId} alertId={view.alertId} role={role} onClose={closeDetail} />}
       </div>
     </div>
   );

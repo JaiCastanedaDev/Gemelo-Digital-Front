@@ -21,17 +21,34 @@ interface AlertDetailPanelProps {
 export function AlertDetailPanel({ alertId, role, onClose }: AlertDetailPanelProps) {
   const all = useAlerts(role, {});
   const ack = useAckAlert();
-  const { dismiss } = useToasts();
+  const { dismiss, show } = useToasts();
   const [confirming, setConfirming] = useState(false);
   const [ackError, setAckError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const mountedRef = useRef(false);
+  const focusHeadingAfterAck = useRef(false);
   const alert = all.data?.data.find((a) => a.alert_id === alertId);
+  const isAcknowledged = alert?.acknowledged ?? false;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     headingRef.current?.focus();
-    setAckError(null);
     dismiss(alertId); // abrir la alerta cierra su notificación persistente
   }, [alertId, dismiss]);
+
+  // Al revisar la alerta desaparece el botón que tenía el foco: lo llevamos al título del detalle.
+  useEffect(() => {
+    if (isAcknowledged && focusHeadingAfterAck.current) {
+      focusHeadingAfterAck.current = false;
+      headingRef.current?.focus();
+    }
+  }, [isAcknowledged]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -42,10 +59,21 @@ export function AlertDetailPanel({ alertId, role, onClose }: AlertDetailPanelPro
   }, [confirming, onClose]);
 
   function confirmAck(target: AlertResidente) {
+    if (ack.isPending) return;
     setConfirming(false);
     setAckError(null);
-    ack.mutate(target.alert_id, {
-      onError: (error) => setAckError(`No se pudo marcar la alerta como revisada. ${errorMessage(error)}`),
+    focusHeadingAfterAck.current = true;
+    // mutateAsync (y no las opciones de mutate) para que el fallo se informe aunque el panel ya se haya cerrado.
+    ack.mutateAsync(target.alert_id).catch((error: unknown) => {
+      const reason = errorMessage(error);
+      focusHeadingAfterAck.current = false;
+      show({
+        id: `ack-error-${target.alert_id}`,
+        tone: 'WARNING',
+        title: 'No se pudo marcar como revisada',
+        message: `${target.message} (${target.alert_id}). ${reason}`,
+      });
+      if (mountedRef.current) setAckError(`No se pudo marcar la alerta como revisada. ${reason}`);
     });
   }
 
@@ -107,7 +135,11 @@ export function AlertDetailPanel({ alertId, role, onClose }: AlertDetailPanelPro
 
           {role === 'ADMIN' && (
             <div className={styles.actions}>
-              {!alert.acknowledged && <Button onClick={() => setConfirming(true)}>Marcar como revisada</Button>}
+              {!alert.acknowledged && (
+                <Button disabled={ack.isPending} onClick={() => setConfirming(true)}>
+                  Marcar como revisada
+                </Button>
+              )}
               <Link to={`/sensores?sensor=${encodeURIComponent(alert.sensor_id)}`}>Ver sensor</Link>
               <Link to={`/gemelo?sensor=${encodeURIComponent(alert.sensor_id)}`}>Ver en 3D</Link>
               <Link
@@ -125,6 +157,7 @@ export function AlertDetailPanel({ alertId, role, onClose }: AlertDetailPanelPro
               title="¿Marcar esta alerta como revisada?"
               description="Esto no resuelve la condición; si persiste, se volverá a registrar."
               confirmLabel="Marcar como revisada"
+              restoreFocusTo={() => headingRef.current}
               onCancel={() => setConfirming(false)}
               onConfirm={() => confirmAck(alert)}
             />

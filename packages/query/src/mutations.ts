@@ -26,10 +26,12 @@ export function useAckAlert(): UseMutationResult<AlertAdmin, unknown, string, Ac
       for (const [key, list] of context?.snapshot ?? []) queryClient.setQueryData(key, list);
     },
     onSuccess: (updated) => applyAlertToCache(queryClient, 'ADMIN', updated),
-    onSettled: () =>
-      Promise.all([
+    // Las invalidaciones se lanzan sin esperarlas: así el resultado (y su mensaje de error) no depende de los refetch.
+    onSettled: () => {
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.general() }),
-      ]),
+      ]);
+    },
   });
 }

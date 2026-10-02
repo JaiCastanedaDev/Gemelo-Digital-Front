@@ -28,3 +28,8 @@ export type AlertListResidente = z.infer<typeof alertListResidenteSchema>;
 
 export const alertListAdminSchema = z.object({ count: z.number().int(), data: z.array(alertAdminSchema) });
 export type AlertListAdmin = z.infer<typeof alertListAdminSchema>;
+
+/** En runtime, el ADMIN recibe campos extra; se distinguen por `occurrence_count`. */
+export function isAdminAlert(alert: AlertResidente): alert is AlertAdmin {
+  return typeof (alert as Partial<AlertAdmin>).occurrence_count === 'number';
+}

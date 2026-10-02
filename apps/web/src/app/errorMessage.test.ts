@@ -13,6 +13,9 @@ describe('errorMessage', () => {
     expect(errorMessage(apiError(503))).toMatch(/El servidor tuvo un problema/);
     expect(errorMessage(new ContractDriftError({ method: 'GET', path: '/x', issues: [] }))).toMatch(/formato inesperado/);
   });
+  it('traduce el 401 a un mensaje de sesión expirada, sin usar el texto del backend', () => {
+    expect(errorMessage(apiError(401))).toBe('Tu sesión expiró. Vuelve a ingresar.');
+  });
   it('usa el mensaje del backend para otros códigos y uno genérico para lo desconocido', () => {
     expect(errorMessage(apiError(409))).toBe('del servidor');
     expect(errorMessage('???')).toMatch(/Ocurrió un error inesperado/);

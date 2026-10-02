@@ -26,18 +26,21 @@ export interface ServicesOptions {
   queryClient?: QueryClient;
 }
 
-const NO_RETRY_STATUS = new Set([401, 403, 404, 422]);
+// 429: la app ya muestra el mensaje de espera; reintentar solo martillaría una API con límite de tasa.
+const NO_RETRY_STATUS = new Set([401, 403, 404, 422, 429]);
+
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (error instanceof ContractDriftError) return false;
+  if (error instanceof ApiError && NO_RETRY_STATUS.has(error.status)) return false;
+  return failureCount < 2;
+}
 
 function defaultQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 10_000,
-        retry: (failureCount, error) => {
-          if (error instanceof ContractDriftError) return false;
-          if (error instanceof ApiError && NO_RETRY_STATUS.has(error.status)) return false;
-          return failureCount < 2;
-        },
+        retry: shouldRetryQuery,
       },
     },
   });

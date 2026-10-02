@@ -11,13 +11,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gd/api": "workspace:*",
-    "@tanstack/react-query": "^5.104.1"
+    "@gd/api": "workspace:*"
   },
   "peerDependencies": {
+    "@tanstack/react-query": "^5",
     "react": "^19"
   },
   "devDependencies": {
+    "@tanstack/react-query": "^5.104.1",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

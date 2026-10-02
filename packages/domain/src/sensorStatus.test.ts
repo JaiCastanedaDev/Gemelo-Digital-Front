@@ -17,6 +17,11 @@ describe('isOffline', () => {
   it('no es OFFLINE exactamente a los 15 min', () => {
     expect(isOffline(minutesAgo(15), NOW)).toBe(false);
   });
+  it('un last_seen_at sin zona horaria se lee como UTC: 10:00 a las 15:00Z es OFFLINE', () => {
+    expect(isOffline('2026-10-02T10:00:00', NOW)).toBe(true);
+    const map = buildSensorStatusMap([sensor('s1', '2026-10-02T10:00:00')], [], NOW);
+    expect(map.get('s1')?.level).toBe('OFFLINE');
+  });
   it('es OFFLINE si last_seen_at es null', () => {
     expect(isOffline(null, NOW)).toBe(true);
   });

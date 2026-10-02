@@ -1,6 +1,9 @@
+import type { RealtimeStatus } from '@gd/realtime';
 import { setupWorker } from 'msw/browser';
 import { db, resetDb } from './db';
+import { emitMockAlert } from './emit';
 import { handlers } from './handlers';
+import { realtimeBus } from './realtimeBus';
 import { isScenario, type Scenario } from './seed';
 
 declare global {
@@ -9,6 +12,10 @@ declare global {
       expireAccessTokens(): void;
       revokeRefreshTokens(): void;
       reset(scenario?: Scenario): void;
+      /** Simula un `alert:new` del servidor; devuelve el `alert_id`. */
+      emitAlert(level: 'CRITICAL' | 'WARNING'): string;
+      setRealtimeStatus(status: RealtimeStatus): void;
+      failNextAck(): void;
     };
   }
 }
@@ -40,6 +47,11 @@ export async function startMockWorker(): Promise<void> {
       db.settings.refreshValidAfterMs = Date.now() + 1;
     },
     reset: (scenario) => resetDb(scenario),
+    emitAlert: (level) => emitMockAlert({ level }).alert_id,
+    setRealtimeStatus: (status) => realtimeBus.setStatus(status),
+    failNextAck: () => {
+      db.settings.failNextAck = true;
+    },
   };
   await setupWorker(...handlers).start({ onUnhandledRequest: 'bypass', quiet: true });
 }

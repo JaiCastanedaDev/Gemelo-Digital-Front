@@ -26,6 +26,8 @@ export interface MockDb {
     /** Tokens emitidos antes de este instante (ms) se rechazan. */
     accessValidAfterMs: number;
     refreshValidAfterMs: number;
+    /** El próximo POST /alerts/:id/ack responde 500 (para probar la reversión). */
+    failNextAck: boolean;
   };
 }
 
@@ -41,7 +43,13 @@ function createDb(scenario: Scenario, now: number): MockDb {
     ),
     usedRefreshTokens: new Set(),
     loginAttempts: new Map(),
-    settings: { accessTtlSeconds: 900, refreshTtlSeconds: 7 * 24 * 3600, accessValidAfterMs: 0, refreshValidAfterMs: 0 },
+    settings: {
+      accessTtlSeconds: 900,
+      refreshTtlSeconds: 7 * 24 * 3600,
+      accessValidAfterMs: 0,
+      refreshValidAfterMs: 0,
+      failNextAck: false,
+    },
   };
 }
 

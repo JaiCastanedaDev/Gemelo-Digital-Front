@@ -1,12 +1,8 @@
-import type { AlertAdmin, AlertResidente } from '@gd/api';
+import type { AlertAdmin } from '@gd/api';
 import { HttpResponse, http } from 'msw';
-import { authenticate } from '../auth';
+import { authenticate, errorResponse, requireRole } from '../auth';
 import { db } from '../db';
-
-function toResidente(alert: AlertAdmin): AlertResidente {
-  const { alert_id, building_id, sensor_id, level, category, message, timestamp, acknowledged } = alert;
-  return { alert_id, building_id, sensor_id, level, category, message, timestamp, acknowledged };
-}
+import { toResidenteAlert } from '../serialize';
 
 export const alertHandlers = [
   http.get('*/api/v1/alerts', ({ request }) => {
@@ -21,7 +17,26 @@ export const alertHandlers = [
       list = list.filter((a) => a.acknowledged === (acknowledged === 'true'));
     }
     list.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-    const data = auth.role === 'ADMIN' ? list : list.map(toResidente);
+    const data = auth.role === 'ADMIN' ? list : list.map(toResidenteAlert);
     return HttpResponse.json({ count: data.length, data });
+  }),
+
+  http.post('*/api/v1/alerts/:id/ack', ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth instanceof Response) return auth;
+    const forbidden = requireRole(auth, ['ADMIN']);
+    if (forbidden) return forbidden;
+    if (db.settings.failNextAck) {
+      db.settings.failNextAck = false;
+      return errorResponse(500, 'SIMULATED_FAILURE', 'Falla simulada del servidor');
+    }
+    const alert: AlertAdmin | undefined = db.alerts.find((a) => a.alert_id === String(params.id));
+    if (!alert) return errorResponse(404, 'NOT_FOUND', 'Alerta no encontrada');
+    if (!alert.acknowledged) {
+      alert.acknowledged = true;
+      alert.acknowledged_by = db.users.find((u) => u.id === auth.sub)?.name ?? auth.sub;
+      alert.acknowledged_at = new Date().toISOString();
+    }
+    return HttpResponse.json(alert);
   }),
 ];

@@ -5,3 +5,4 @@ export * from './schemas/sensors';
 export * from './schemas/alerts';
 export * from './schemas/maintenance';
 export * from './errors';
+export * from './http';

@@ -230,6 +230,57 @@ describe('createRealtimeClient', () => {
     expect(client.getStatus()).toBe('connected');
   });
 
+  it('una renovación de token no reinicia los reintentos de autenticación', async () => {
+    const hooks = { rotate: () => {} };
+    const { client, socket, scheduler, state, refreshAccessToken } = setup({
+      refresh: async () => {
+        hooks.rotate();
+        return true;
+      },
+    });
+    let rotations = 0;
+    hooks.rotate = () => {
+      state.token = `t-rot-${++rotations}`;
+      client.tokenChanged(); // como hace la app tras cada refresh exitoso
+    };
+    client.start();
+    for (let attempt = 0; attempt < AUTH_RETRY_DELAYS_MS.length; attempt++) {
+      socket().serverRejects();
+      expect(scheduler.tasks).toHaveLength(1);
+      expect(scheduler.tasks[0]?.ms).toBe(AUTH_RETRY_DELAYS_MS[attempt]);
+      scheduler.runAll();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(refreshAccessToken).toHaveBeenCalledTimes(attempt + 1);
+    }
+    socket().serverRejects();
+    expect(client.getStatus()).toBe('disconnected');
+    expect(refreshAccessToken).toHaveBeenCalledTimes(AUTH_RETRY_DELAYS_MS.length);
+    expect(scheduler.tasks).toHaveLength(0);
+  });
+
+  it('tras agotar los reintentos, tokenChanged (p. ej. nuevo login) sí vuelve a intentar', async () => {
+    const { client, socket, scheduler, state } = setup();
+    client.start();
+    for (let attempt = 0; attempt < AUTH_RETRY_DELAYS_MS.length; attempt++) {
+      socket().serverRejects();
+      scheduler.runAll();
+      await vi.waitFor(() => expect(socket().tokensSent).toHaveLength(attempt + 2));
+    }
+    socket().serverRejects();
+    expect(client.getStatus()).toBe('disconnected');
+
+    state.token = 't-login';
+    client.tokenChanged();
+    expect(socket().tokensSent.at(-1)).toBe('t-login');
+    expect(client.getStatus()).toBe('connecting');
+    socket().serverAccepts();
+    expect(client.getStatus()).toBe('connected');
+
+    // El contador se reinició: el siguiente rechazo vuelve a empezar por la primera espera.
+    socket().serverRejects();
+    expect(scheduler.tasks[0]?.ms).toBe(AUTH_RETRY_DELAYS_MS[0]);
+  });
+
   it('stop desconecta, limpia reintentos e ignora eventos posteriores', () => {
     const { client, socket, scheduler } = setup();
     const received = vi.fn();

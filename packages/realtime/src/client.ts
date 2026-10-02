@@ -151,7 +151,9 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     tokenChanged() {
       if (!started || !options.getAccessToken()) return;
       clearRetry();
-      authFailures = 0;
+      // Solo se reinicia el contador si ya se agotaron los reintentos (p. ej. nuevo login). Un refresh
+      // durante los reintentos también llama aquí: reiniciarlo anularía la espera y el tope.
+      if (status === 'disconnected') authFailures = 0;
       const current = ensureSocket();
       // El token solo viaja en el handshake: hay que reconectar para que el servidor vea el nuevo.
       current.disconnect();

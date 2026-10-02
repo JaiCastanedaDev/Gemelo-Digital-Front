@@ -106,6 +106,10 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
         message: 'La respuesta del servidor no es JSON válido',
       });
     }
+    // Regla: una respuesta que no pasa el esquema NUNCA se entrega cruda, en ningún modo. Se reporta la deriva
+    // y se lanza ContractDriftError (la sección se degrada a "formato inesperado"). Los esquemas por rol deben
+    // aplicarse siempre: la garantía de que el residente no recibe campos de más depende de este parseo.
+    // 'lenient' solo afecta a cómo la app presenta la deriva; los campos extra desconocidos no fallan (z.object los descarta).
     const result = schema.safeParse(data);
     if (result.success) return result.data;
     const drift: ContractDrift = {
@@ -114,8 +118,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
       issues: result.error.issues.map((issue) => `${issue.path.map(String).join('.') || '(raíz)'}: ${issue.message}`),
     };
     options.onContractDrift?.(drift);
-    if (options.validation === 'strict') throw new ContractDriftError(drift);
-    return data as z.output<S>;
+    throw new ContractDriftError(drift);
   }
 
   return {

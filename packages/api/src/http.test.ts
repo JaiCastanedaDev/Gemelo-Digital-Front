@@ -104,10 +104,26 @@ describe('createHttpClient', () => {
     expect(onContractDrift).toHaveBeenCalledWith(expect.objectContaining({ method: 'GET', path: '/x' }));
   });
 
-  it('modo lenient: reporta la deriva pero devuelve los datos', async () => {
+  it('modo lenient: reporta la deriva y también lanza ContractDriftError (no devuelve datos sin validar)', async () => {
     const onContractDrift = vi.fn();
     const { client } = setup([json(200, { ok: 'sí' })], { validation: 'lenient', onContractDrift });
-    await expect(client.get('/x', { schema: okSchema })).resolves.toEqual({ ok: 'sí' });
+    await expect(client.get('/x', { schema: okSchema })).rejects.toBeInstanceOf(ContractDriftError);
+    expect(onContractDrift).toHaveBeenCalledTimes(1);
+  });
+
+  it('modo lenient: una lista con un campo extra que falla otro campo requerido no filtra el campo extra', async () => {
+    const residentListSchema = z.object({ count: z.number(), data: z.array(z.object({ id: z.string(), name: z.string() })) });
+    const onContractDrift = vi.fn();
+    const { client } = setup([json(200, { count: 1, data: [{ id: 's-1', value: 42 }] })], {
+      validation: 'lenient',
+      onContractDrift,
+    });
+    const outcome = await client.get('/sensors', { schema: residentListSchema }).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    expect(outcome).not.toHaveProperty('value');
+    expect((outcome as { error: unknown }).error).toBeInstanceOf(ContractDriftError);
     expect(onContractDrift).toHaveBeenCalledTimes(1);
   });
 

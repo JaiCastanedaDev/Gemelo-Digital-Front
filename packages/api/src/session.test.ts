@@ -288,14 +288,20 @@ describe('respuestas de refresh malformadas', () => {
   ];
 
   async function withUnhandledRejections(run: () => Promise<void>) {
+    // Los tipos de Node no forman parte de este paquete: se accede a `process` solo en el test, de forma tipada y mínima.
+    const nodeProcess = (
+      globalThis as unknown as {
+        process: { on(event: string, fn: (reason: unknown) => void): void; off(event: string, fn: (reason: unknown) => void): void };
+      }
+    ).process;
     const seen: unknown[] = [];
     const onUnhandled = (reason: unknown) => seen.push(reason);
-    process.on('unhandledRejection', onUnhandled);
+    nodeProcess.on('unhandledRejection', onUnhandled);
     try {
       await run();
       await new Promise((resolve) => setTimeout(resolve, 20));
     } finally {
-      process.off('unhandledRejection', onUnhandled);
+      nodeProcess.off('unhandledRejection', onUnhandled);
     }
     return seen;
   }

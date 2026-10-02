@@ -2,7 +2,7 @@ import type { AlertAdmin } from '@gd/api';
 import { isOffline } from '@gd/domain';
 import { HttpResponse, http } from 'msw';
 import { authenticate } from '../auth';
-import { db } from '../db';
+import { db, getSensors } from '../db';
 
 function co2Index(ppm: number): 'BUENO' | 'REGULAR' | 'MALO' {
   if (ppm < 800) return 'BUENO';
@@ -20,11 +20,12 @@ export const dashboardHandlers = [
     const critical = count('CRITICAL');
     const warning = count('WARNING');
     const info = count('INFO');
-    const offline = db.sensors.filter((s) => isOffline(s.last_seen_at, now)).length;
+    const sensors = getSensors(now.getTime());
+    const offline = sensors.filter((s) => isOffline(s.last_seen_at, now)).length;
     return HttpResponse.json({
       health_score: Math.max(0, 100 - (25 * critical + 10 * warning + 2 * info + 5 * offline)),
       alerts_summary: { CRITICAL: critical, WARNING: warning, INFO: info, total: critical + warning + info },
-      sensors: { total: db.sensors.length, online: db.sensors.length - offline, offline },
+      sensors: { total: sensors.length, online: sensors.length - offline, offline },
       generated_at: now.toISOString(),
     });
   }),

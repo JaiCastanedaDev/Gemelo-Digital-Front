@@ -1,6 +1,6 @@
 import { HttpResponse, http } from 'msw';
 import { authenticate, requireRole } from '../auth';
-import { db } from '../db';
+import { getSensors } from '../db';
 
 export const sensorHandlers = [
   http.get('*/api/v1/sensors', ({ request }) => {
@@ -8,6 +8,7 @@ export const sensorHandlers = [
     if (auth instanceof Response) return auth;
     const forbidden = requireRole(auth, ['ADMIN']);
     if (forbidden) return forbidden;
-    return HttpResponse.json({ count: db.sensors.length, data: db.sensors });
+    const data = getSensors();
+    return HttpResponse.json({ count: data.length, data });
   }),
 ];

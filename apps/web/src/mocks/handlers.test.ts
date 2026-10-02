@@ -5,7 +5,7 @@ import {
   createHttpClient,
   createSessionManager,
 } from '@gd/api';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { db, resetDb } from './db';
 import { ADMIN_EMAIL, DEMO_PASSWORD, RATE_LIMITED_EMAIL, RESIDENTE_EMAIL } from './seed';
 
@@ -97,5 +97,54 @@ describe('backend simulado', () => {
     db.settings.accessValidAfterMs = Date.now() + 1;
     await new Promise((r) => setTimeout(r, 5));
     await expect(api.dashboard.general()).resolves.toMatchObject({ health_score: 96 });
+  });
+});
+
+describe('backend simulado: estabilidad con el paso del tiempo', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function loginAdmin() {
+    const { session, api } = client();
+    const s = await session.login(ADMIN_EMAIL, DEMO_PASSWORD);
+    return { api, token: s.accessToken };
+  }
+
+  function advance30Minutes() {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 30 * 60_000);
+  }
+
+  it('sano sigue con health_score 96 y 0 sensores sin datos 30 min después', async () => {
+    resetDb('sano');
+    const { api } = await loginAdmin();
+    advance30Minutes();
+    const general = await api.dashboard.general();
+    expect(general.health_score).toBe(96);
+    expect(general.sensors.offline).toBe(0);
+  });
+
+  it('caido sigue con health_score 66 y 6 sensores sin datos 30 min después', async () => {
+    resetDb('caido');
+    const { api } = await loginAdmin();
+    advance30Minutes();
+    const general = await api.dashboard.general();
+    expect(general.health_score).toBe(66);
+    expect(general.sensors.offline).toBe(6);
+  });
+
+  it.each([
+    ['sano', 0],
+    ['caido', 6],
+  ] as const)('GET /sensors (%s) recalcula last_seen_at al leer: %i sin datos', async (scenario, expectedOffline) => {
+    resetDb(scenario);
+    advance30Minutes();
+    const { token } = await loginAdmin();
+    const now = Date.now();
+    const { data } = (await rawGet('/sensors', token)) as { data: { last_seen_at: string }[] };
+    const ageMin = (s: { last_seen_at: string }) => (now - Date.parse(s.last_seen_at)) / 60_000;
+    expect(data.filter((s) => ageMin(s) > 15)).toHaveLength(expectedOffline);
+    expect(data.filter((s) => ageMin(s) <= 2)).toHaveLength(data.length - expectedOffline);
   });
 });

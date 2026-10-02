@@ -59,4 +59,10 @@ describe('LoginPage', () => {
     await submit(ADMIN_EMAIL, DEMO_PASSWORD);
     expect(await screen.findByText('Ruta actual: /')).toBeInTheDocument();
   });
+
+  it('ignora un "volver" con tabulación incrustada (/\\t/evil.com)', async () => {
+    renderLogin('/login?volver=%2F%09%2Fevil.com');
+    await submit(ADMIN_EMAIL, DEMO_PASSWORD);
+    expect(await screen.findByText('Ruta actual: /')).toBeInTheDocument();
+  });
 });

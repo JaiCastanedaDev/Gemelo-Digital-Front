@@ -71,10 +71,11 @@ export function SessionProvider({ manager, children }: { manager: SessionManager
   );
 
   const logout = useCallback(async () => {
-    await manager.logout();
+    // Limpieza local primero (spec §7.2); el aviso al backend es best-effort y no debe borrar la caché del siguiente usuario.
     lastSubRef.current = null;
     queryClient.clear();
-  }, [manager, queryClient]);
+    await manager.logout();
+  },[manager, queryClient]);
 
   const value = useMemo(() => ({ ...state, login, logout }), [state, login, logout]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -1,5 +1,6 @@
 import type { AlertResidente, Role } from '@gd/api';
 import type { RealtimeClient, RealtimeStatus } from '@gd/realtime';
+import type { RealtimeFactory } from '../app/services';
 import { realtimeBus } from './realtimeBus';
 import { toResidenteAlert } from './serialize';
 
@@ -51,3 +52,5 @@ export function createMockRealtimeClient(role: Role): RealtimeClient {
     },
   };
 }
+
+export const mockRealtimeFactory: RealtimeFactory = ({ role }) => createMockRealtimeClient(role);

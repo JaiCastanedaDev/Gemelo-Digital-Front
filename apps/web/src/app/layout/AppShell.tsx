@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from 'react-router';
+import { ToastViewport } from '../../ui/toast/ToastProvider';
 import styles from './AppShell.module.css';
 import { Header } from './Header';
 import { RouteErrorBoundary } from './RouteErrorBoundary';
@@ -18,6 +19,7 @@ export function AppShell() {
           <Outlet />
         </RouteErrorBoundary>
       </main>
+      <ToastViewport />
     </div>
   );
 }

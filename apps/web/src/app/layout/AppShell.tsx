@@ -1,9 +1,11 @@
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import styles from './AppShell.module.css';
 import { Header } from './Header';
+import { RouteErrorBoundary } from './RouteErrorBoundary';
 import { Sidebar } from './Sidebar';
 
 export function AppShell() {
+  const { pathname } = useLocation();
   return (
     <div className={styles.shell}>
       <a href="#contenido" className={styles.skip}>
@@ -12,7 +14,9 @@ export function AppShell() {
       <Header />
       <Sidebar />
       <main id="contenido" className={styles.main} tabIndex={-1}>
-        <Outlet />
+        <RouteErrorBoundary resetKey={pathname}>
+          <Outlet />
+        </RouteErrorBoundary>
       </main>
     </div>
   );

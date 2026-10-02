@@ -1,0 +1,19 @@
+.error {
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--status-critical-bg);
+  color: var(--status-critical-fg);
+}
+.title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+.actions a {
+  color: inherit;
+}

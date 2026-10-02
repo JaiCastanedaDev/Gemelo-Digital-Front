@@ -1,9 +1,11 @@
 import type { AlertResidente } from '@gd/api';
 import { sortAlertsForInbox } from '@gd/domain';
 import { POLL_INTERVALS_MS, useAlerts } from '@gd/query';
+import { useCallback } from 'react';
 import { useSearchParams } from 'react-router';
 import { useSession } from '../../app/session/SessionProvider';
 import { DataState } from '../../ui/DataState';
+import { AlertDetailPanel } from './AlertDetailPanel';
 import { AlertFiltersBar } from './AlertFiltersBar';
 import { AlertList } from './AlertList';
 import { apiFilters, readAlertsView, writeAlertsView, type AlertsView } from './alertFilters';
@@ -20,6 +22,17 @@ export function AlertsPage() {
   const view = readAlertsView(params);
   const role = session?.claims.role ?? 'RESIDENTE';
   const query = useAlerts(role, apiFilters(view));
+
+  const closeDetail = useCallback(() => {
+    setParams(
+      (previous) => {
+        const next = readAlertsView(previous);
+        delete next.alertId;
+        return writeAlertsView(next);
+      },
+      { replace: true },
+    );
+  }, [setParams]);
 
   if (!session) return null;
 
@@ -42,6 +55,7 @@ export function AlertsPage() {
             {(data) => <AlertList alerts={visibleAlerts(data.data, view)} view={view} isAdmin={role === 'ADMIN'} />}
           </DataState>
         </section>
+        {view.alertId && <AlertDetailPanel alertId={view.alertId} role={role} onClose={closeDetail} />}
       </div>
     </div>
   );

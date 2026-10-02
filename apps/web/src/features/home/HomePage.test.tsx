@@ -86,6 +86,23 @@ describe('HomePage', () => {
     expect(await region.findByText('−30 · 6 sensores sin datos')).toBeInTheDocument();
   });
 
+  it('la tarjeta "Sensores en línea" no se pinta como normal si hay sensores sin datos', async () => {
+    resetDb('caido');
+    const services = createTestServices();
+    await loginAs(services, 'admin');
+    renderApp(services, '/');
+    const label = await screen.findByText('Sensores en línea');
+    expect(label.closest('[data-tone]')).toHaveAttribute('data-tone', 'WARNING');
+  });
+
+  it('la tarjeta "Sensores en línea" es normal cuando todos reportan', async () => {
+    const services = createTestServices();
+    await loginAs(services, 'admin');
+    renderApp(services, '/');
+    const label = await screen.findByText('Sensores en línea');
+    expect(label.closest('[data-tone]')).toHaveAttribute('data-tone', 'OK');
+  });
+
   it('acota un puntaje inválido del backend', async () => {
     server.use(
       http.get('*/api/v1/dashboard/general', () =>

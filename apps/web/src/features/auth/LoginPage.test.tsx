@@ -65,4 +65,10 @@ describe('LoginPage', () => {
     await submit(ADMIN_EMAIL, DEMO_PASSWORD);
     expect(await screen.findByText('Ruta actual: /')).toBeInTheDocument();
   });
+
+  it('ignora un "volver" que al normalizar puntos queda como "//evil.com"', async () => {
+    renderLogin('/login?volver=%2Fa%2F..%2F%2Fevil.com');
+    await submit(ADMIN_EMAIL, DEMO_PASSWORD);
+    expect(await screen.findByText('Ruta actual: /')).toBeInTheDocument();
+  });
 });

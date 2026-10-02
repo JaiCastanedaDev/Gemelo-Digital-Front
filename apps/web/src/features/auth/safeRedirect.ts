@@ -23,5 +23,8 @@ export function safeRedirect(target: string | null): string {
   }
   if (resolved.origin !== new URL(BASE).origin) return '/';
   if (resolved.pathname === '/login' || resolved.pathname.startsWith('/login/')) return '/';
-  return resolved.pathname + resolved.search + resolved.hash;
+  // Validar el RESULTADO: al colapsar segmentos de punto, "/a/..//x" se vuelve "//x" (URL relativa al protocolo).
+  const normalized = resolved.pathname + resolved.search + resolved.hash;
+  if (!normalized.startsWith('/') || normalized.startsWith('//') || normalized.includes('\\')) return '/';
+  return normalized;
 }

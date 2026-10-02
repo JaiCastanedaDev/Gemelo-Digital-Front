@@ -1,0 +1,192 @@
+import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from './errors';
+import { MemoryTokenStore, createSessionManager, refreshDelayMs, type Scheduler } from './session';
+import { makeFakeJwt } from './testing';
+
+class FakeScheduler implements Scheduler {
+  tasks: { id: number; fn: () => void; ms: number }[] = [];
+  private nextId = 1;
+  setTimeout(fn: () => void, ms: number) {
+    const id = this.nextId++;
+    this.tasks.push({ id, fn, ms });
+    return id;
+  }
+  clearTimeout(handle: unknown) {
+    this.tasks = this.tasks.filter((t) => t.id !== handle);
+  }
+  runAll() {
+    const pending = this.tasks;
+    this.tasks = [];
+    pending.forEach((t) => t.fn());
+  }
+}
+
+const json = (status: number, body: unknown) =>
+  new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+function tokens(n: number, sub = 'usr-1', expiresIn = 900) {
+  return {
+    access_token: makeFakeJwt({ sub, role: 'ADMIN', buildingId: 'bld-1', n }),
+    refresh_token: `r-${n}`,
+    token_type: 'Bearer',
+    expires_in: expiresIn,
+  };
+}
+const user = { id: 'usr-1', email: 'admin@demo.co', name: 'Admin', role: 'ADMIN' as const };
+
+function setup(handler: (url: string, body: Record<string, unknown>) => Response | Promise<Response>) {
+  const store = new MemoryTokenStore();
+  const scheduler = new FakeScheduler();
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+    handler(String(input), JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>),
+  );
+  const manager = createSessionManager({
+    baseUrl: 'http://api.test',
+    store,
+    scheduler,
+    fetch: fetchMock as unknown as typeof fetch,
+  });
+  return { manager, store, scheduler, fetchMock };
+}
+
+describe('refreshDelayMs', () => {
+  it('renueva 120 s antes de expirar', () => {
+    expect(refreshDelayMs(900)).toBe(780_000);
+  });
+  it('con tokens muy cortos usa la mitad de la vida (sin bucle inmediato)', () => {
+    expect(refreshDelayMs(60)).toBe(30_000);
+    expect(refreshDelayMs(5)).toBe(2_500);
+  });
+});
+
+describe('createSessionManager', () => {
+  it('login guarda refresh y usuario, decodifica claims y programa el refresh', async () => {
+    const { manager, store, scheduler } = setup(() => json(200, { ...tokens(1), user }));
+    const session = await manager.login('admin@demo.co', 'x');
+    expect(session.claims).toEqual({ sub: 'usr-1', role: 'ADMIN', buildingId: 'bld-1' });
+    expect(manager.getAccessToken()).toBe(session.accessToken);
+    expect(store.getRefreshToken()).toBe('r-1');
+    expect(store.getUser()?.email).toBe('admin@demo.co');
+    expect(scheduler.tasks.map((t) => t.ms)).toEqual([780_000]);
+  });
+
+  it('login fallido lanza ApiError con el código del backend', async () => {
+    const { manager } = setup(() => json(423, { error: { code: 'ACCOUNT_LOCKED', message: 'bloqueada' } }));
+    const err = await manager.login('a@b.co', 'x').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ status: 423, code: 'ACCOUNT_LOCKED' });
+  });
+
+  it('refresh es de vuelo único: dos llamadas simultáneas hacen un solo POST', async () => {
+    let n = 1;
+    const { manager, store, fetchMock } = setup((url) =>
+      url.endsWith('/auth/login') ? json(200, { ...tokens(1), user }) : json(200, tokens(++n)),
+    );
+    await manager.login('admin@demo.co', 'x');
+    const [a, b] = await Promise.all([manager.refresh(), manager.refresh()]);
+    expect(a && b).toBe(true);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/auth/refresh'))).toHaveLength(1);
+    expect(store.getRefreshToken()).toBe('r-2');
+  });
+
+  it('refresh rechazado cierra la sesión con motivo "expired"', async () => {
+    const { manager, store } = setup((url) =>
+      url.endsWith('/auth/login') ? json(200, { ...tokens(1), user }) : json(401, { error: { code: 'X', message: 'x' } }),
+    );
+    await manager.login('admin@demo.co', 'x');
+    const listener = vi.fn();
+    manager.subscribe(listener);
+    await expect(manager.refresh()).resolves.toBe(false);
+    expect(manager.getSession()).toBeNull();
+    expect(store.getRefreshToken()).toBeNull();
+    expect(listener).toHaveBeenLastCalledWith(null, 'expired');
+  });
+
+  it('un fallo de red en el refresh conserva la sesión', async () => {
+    const { manager } = setup((url) => {
+      if (url.endsWith('/auth/login')) return json(200, { ...tokens(1), user });
+      throw new TypeError('Failed to fetch');
+    });
+    await manager.login('admin@demo.co', 'x');
+    await expect(manager.refresh()).resolves.toBe(false);
+    expect(manager.getSession()).not.toBeNull();
+  });
+
+  it('restore usa el refresh guardado y el usuario almacenado', async () => {
+    const { manager, store } = setup(() => json(200, tokens(5)));
+    store.setRefreshToken('r-guardado');
+    store.setUser(user);
+    const session = await manager.restore();
+    expect(session?.claims.sub).toBe('usr-1');
+    expect(session?.user?.name).toBe('Admin');
+  });
+
+  it('restore sin refresh guardado no llama al backend; después funciona con token', async () => {
+    const { manager, store, fetchMock } = setup(() => json(200, tokens(7)));
+    await expect(manager.restore()).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    store.setRefreshToken('r-nuevo');
+    await expect(manager.restore()).resolves.not.toBeNull();
+  });
+
+  it('el timer programado dispara el refresh', async () => {
+    let n = 1;
+    const { manager, scheduler, store } = setup((url) =>
+      url.endsWith('/auth/login') ? json(200, { ...tokens(1), user }) : json(200, tokens(++n)),
+    );
+    await manager.login('admin@demo.co', 'x');
+    scheduler.runAll();
+    await vi.waitFor(() => expect(store.getRefreshToken()).toBe('r-2'));
+  });
+
+  it('logout limpia todo, avisa "logout" y tolera fallos del backend', async () => {
+    const { manager, store, fetchMock } = setup((url) => {
+      if (url.endsWith('/auth/login')) return json(200, { ...tokens(1), user });
+      throw new TypeError('Failed to fetch');
+    });
+    await manager.login('admin@demo.co', 'x');
+    const listener = vi.fn();
+    manager.subscribe(listener);
+    await manager.logout();
+    expect(store.getRefreshToken()).toBeNull();
+    expect(store.getUser()).toBeNull();
+    expect(listener).toHaveBeenLastCalledWith(null, 'logout');
+    const logoutCall = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/auth/logout'));
+    expect(JSON.parse(String(logoutCall?.[1]?.body))).toEqual({ refresh_token: 'r-1' });
+  });
+
+  describe('waitForReauth', () => {
+    /** Inicia sesión como usr-1, hace expirar la sesión y deja preparado el próximo login como `nextLoginSub`. */
+    async function expiredManager(nextLoginSub: string) {
+      let loginSub = 'usr-1';
+      let n = 0;
+      const { manager } = setup((url) => {
+        if (url.endsWith('/auth/refresh')) return json(401, { error: { code: 'X', message: 'x' } });
+        return json(200, { ...tokens(++n, loginSub), user });
+      });
+      await manager.login('admin@demo.co', 'x');
+      await manager.refresh();
+      loginSub = nextLoginSub;
+      return manager;
+    }
+
+    it('resuelve true cuando el mismo usuario vuelve a entrar', async () => {
+      const manager = await expiredManager('usr-1');
+      const waiting = manager.waitForReauth();
+      await manager.login('admin@demo.co', 'x');
+      await expect(waiting).resolves.toBe(true);
+    });
+
+    it('resuelve false si entra otro usuario', async () => {
+      const manager = await expiredManager('usr-2');
+      const waiting = manager.waitForReauth();
+      await manager.login('otro@demo.co', 'x');
+      await expect(waiting).resolves.toBe(false);
+    });
+
+    it('resuelve false de inmediato si no hay una sesión expirada', async () => {
+      const { manager } = setup(() => json(500, {}));
+      await expect(manager.waitForReauth()).resolves.toBe(false);
+    });
+  });
+});

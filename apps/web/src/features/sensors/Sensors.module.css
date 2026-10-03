@@ -1,0 +1,41 @@
+.page { display: grid; gap: var(--space-4); }
+.page h1 { margin: 0; }
+.intro { margin: var(--space-1) 0 0; color: var(--text-muted); }
+.layout { display: grid; gap: var(--space-4); min-width: 0; }
+@media (min-width: 1024px) {
+  .layout[data-detail='open'] { grid-template-columns: minmax(0, 1fr) minmax(360px, 520px); align-items: start; }
+}
+.detail {
+  position: sticky;
+  top: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.detailHeader { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.detailHeader h2 { margin: 0; font-size: 1.125rem; }
+.close { min-width: 44px; min-height: 44px; display: grid; place-items: center; border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
+.name { margin: 0; font-size: 1.125rem; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
+.facts dt { color: var(--text-muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+.alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.alerts a { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; min-height: 44px; color: var(--text); }
+.actions a { min-height: 44px; display: inline-flex; align-items: center; color: var(--accent); font-weight: 600; }
+.filters { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: end; }
+.filters label { display: grid; gap: var(--space-1); font-size: 0.875rem; font-weight: 600; }
+.filters select { min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; }
+.table caption { text-align: left; font-weight: 600; padding-bottom: var(--space-2); }
+.table th, .table td { padding: var(--space-2); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.table a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-6); min-width: 0; }
+.card h2 { margin: 0 0 var(--space-4); font-size: 1.125rem; }
+@media (max-width: 1023px) {
+  .detail { position: fixed; inset: auto 0 0 0; z-index: 120; max-height: 85vh; overflow-y: auto; border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.2); }
+}

@@ -1,6 +1,7 @@
 import { MemoryTokenStore } from '@gd/api';
 import { QueryClient } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { AppProviders } from '../app/AppProviders';
 import { AppRoutes } from '../app/routes';
@@ -33,6 +34,15 @@ export function renderApp(services: Services, route = '/', options: { sound?: Al
       <MemoryRouter initialEntries={[route]}>
         <AppRoutes />
       </MemoryRouter>
+    </AppProviders>,
+  );
+}
+
+/** Renderiza un componente suelto con todos los providers de la app (para paneles y piezas). */
+export function renderInApp(services: Services, ui: ReactNode, route = '/') {
+  return render(
+    <AppProviders services={services} sound={silentSound}>
+      <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
     </AppProviders>,
   );
 }

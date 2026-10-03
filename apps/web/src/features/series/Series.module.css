@@ -1,0 +1,7 @@
+.panel { display: grid; gap: var(--space-3); min-width: 0; }
+.header { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between; }
+.header h3 { margin: 0; font-size: 1rem; }
+.skeleton { min-height: 280px; border-radius: var(--radius); background: var(--status-offline-bg); }
+.message { margin: 0; color: var(--text-muted); }
+.error { padding: var(--space-3); border-radius: var(--radius); background: var(--status-critical-bg); color: var(--status-critical-fg); }
+.change { margin: 0; font-weight: 600; }

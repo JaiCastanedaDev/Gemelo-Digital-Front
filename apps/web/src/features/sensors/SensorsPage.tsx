@@ -1,26 +1,27 @@
 import type { Sensor } from '@gd/api';
-import { STATUS_ORDER, buildSensorStatusMap, formatNumber, formatRelative, type SensorStatus } from '@gd/domain';
-import { POLL_INTERVALS_MS, useAlerts, useSensors } from '@gd/query';
+import { STATUS_ORDER, formatNumber, formatRelative, type SensorStatus } from '@gd/domain';
+import { POLL_INTERVALS_MS } from '@gd/query';
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataState } from '../../ui/DataState';
-import { StatusBadge } from '../../ui/StatusBadge';
 import { STATUS_META } from '../../ui/statusMeta';
-import { useNow } from '../../ui/useNow';
 import { CATEGORY_OPTIONS, categoryLabel } from '../alerts/alertCopy';
 import { SensorDetailPanel } from './SensorDetailPanel';
 import { readSensorFilters, writeSensorFilters, type SensorFilters } from './sensorFilters';
 import { withSensorView } from './sensorView';
 import styles from './Sensors.module.css';
 import { useSensorSelection } from './useSensorSelection';
+import { SensorStatusBadge } from './StatusParts';
+import { useSensorStatuses } from './useSensorStatuses';
 import { ZoneDensityCard } from './ZoneDensityCard';
 
 interface Row {
   sensor: Sensor;
-  status: SensorStatus;
+  status: SensorStatus | undefined;
 }
 
-function severityRank(status: SensorStatus): number {
+function severityRank(status: SensorStatus | undefined): number {
+  if (!status) return -1; // desconocido: arriba, nunca como normal
   return STATUS_ORDER.indexOf(status.level);
 }
 
@@ -28,29 +29,24 @@ export function SensorsPage() {
   const [params, setParams] = useSearchParams();
   const filters = readSensorFilters(params);
   const selection = useSensorSelection();
-  const sensors = useSensors();
-  const alerts = useAlerts('ADMIN', {});
-  const now = useNow();
+  const { sensors, alertsState, statuses, now, retryAlerts } = useSensorStatuses();
 
-  const rows = useMemo<Row[]>(() => {
-    const list = sensors.data?.data ?? [];
-    const statuses = buildSensorStatusMap(list, alerts.data?.data ?? [], now);
-    return list
-      .flatMap((sensor) => {
-        const status = statuses.get(sensor.sensor_id);
-        return status ? [{ sensor, status }] : [];
-      })
-      .sort((a, b) => severityRank(a.status) - severityRank(b.status) || a.sensor.name.localeCompare(b.sensor.name, 'es'));
-  }, [sensors.data, alerts.data, now]);
+  const rows = useMemo<Row[]>(
+    () =>
+      [...(sensors.data?.data ?? [])]
+        .map((sensor) => ({ sensor, status: statuses.get(sensor.sensor_id) }))
+        .sort((a, b) => severityRank(a.status) - severityRank(b.status) || a.sensor.name.localeCompare(b.sensor.name, 'es')),
+    [sensors.data, statuses],
+  );
 
   const zones = useMemo(() => [...new Set(rows.map((r) => r.sensor.zone))].sort((a, b) => a.localeCompare(b, 'es')), [rows]);
   const visible = rows.filter(
     (r) =>
-      (!filters.status || r.status.level === filters.status) &&
+      (!filters.status || r.status?.level === filters.status) &&
       (!filters.category || r.sensor.category === filters.category) &&
       (!filters.zone || r.sensor.zone === filters.zone),
   );
-  const allStatuses = useMemo(() => rows.map((r) => r.status), [rows]);
+  const allStatuses = useMemo(() => rows.flatMap((r) => (r.status ? [r.status] : [])), [rows]);
 
   const update = (patch: SensorFilters) => setParams(writeSensorFilters(params, { ...filters, ...patch }), { replace: true });
 
@@ -136,7 +132,7 @@ export function SensorsPage() {
                         <td>{sensor.zone}</td>
                         <td>{categoryLabel(sensor.category)}</td>
                         <td>
-                          <StatusBadge level={status.level} lastSeenAt={sensor.last_seen_at} now={now} />
+                          <SensorStatusBadge status={status} lastSeenAt={sensor.last_seen_at} now={now} />
                         </td>
                         <td>{sensor.last_battery_pct === null ? '—' : `${formatNumber(sensor.last_battery_pct, 0)} %`}</td>
                         <td>{sensor.firmware_version ?? '—'}</td>
@@ -148,7 +144,7 @@ export function SensorsPage() {
               </div>
             )}
           </DataState>
-          {sensors.data && <ZoneDensityCard statuses={allStatuses} />}
+          {sensors.data && <ZoneDensityCard statuses={allStatuses} alertsState={alertsState} onRetry={retryAlerts} />}
         </div>
         {selection.view.sensorId && (
           <SensorDetailPanel

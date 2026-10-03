@@ -1,5 +1,5 @@
-import { buildSensorStatusMap, formatDateTime, formatNumber, formatRelative, type RangeKey } from '@gd/domain';
-import { useAlerts, useSensors } from '@gd/query';
+import { formatDateTime, formatNumber, formatRelative, type RangeKey } from '@gd/domain';
+
 import { X } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router';
@@ -7,11 +7,12 @@ import { errorMessage } from '../../app/errorMessage';
 import { Button } from '../../ui/Button';
 import { StatusBadge } from '../../ui/StatusBadge';
 import { STATUS_META } from '../../ui/statusMeta';
-import { useNow } from '../../ui/useNow';
 import { categoryLabel } from '../alerts/alertCopy';
 import { SensorSeriesPanel } from '../series/SensorSeriesPanel';
 import { seriesLabel } from '../series/seriesCopy';
 import styles from './Sensors.module.css';
+import { AlertsNotice, SensorStatusBadge } from './StatusParts';
+import { useSensorStatuses } from './useSensorStatuses';
 
 interface SensorDetailPanelProps {
   sensorId: string;
@@ -21,9 +22,7 @@ interface SensorDetailPanelProps {
 }
 
 export function SensorDetailPanel({ sensorId, range, onRangeChange, onClose }: SensorDetailPanelProps) {
-  const sensors = useSensors();
-  const alerts = useAlerts('ADMIN', {});
-  const now = useNow();
+  const { sensors, alerts, alertsState, statuses, now, retryAlerts } = useSensorStatuses();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const sensor = sensors.data?.data.find((s) => s.sensor_id === sensorId);
   const sensorAlerts = useMemo(
@@ -37,7 +36,7 @@ export function SensorDetailPanel({ sensorId, range, onRangeChange, onClose }: S
         .map((a) => ({ t: Date.parse(a.timestamp), label: STATUS_META[a.level].label })),
     [sensorAlerts],
   );
-  const status = sensor ? buildSensorStatusMap([sensor], sensorAlerts, now).get(sensorId) : undefined;
+  const status = statuses.get(sensorId);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -79,7 +78,7 @@ export function SensorDetailPanel({ sensorId, range, onRangeChange, onClose }: S
       ) : (
         <>
           <h3 className={styles.name}>{sensor.name}</h3>
-          {status && <StatusBadge level={status.level} lastSeenAt={sensor.last_seen_at} now={now} />}
+          <SensorStatusBadge status={status} lastSeenAt={sensor.last_seen_at} now={now} />
           <dl className={styles.facts}>
             <dt>Zona</dt>
             <dd>{sensor.zone}</dd>
@@ -105,7 +104,9 @@ export function SensorDetailPanel({ sensorId, range, onRangeChange, onClose }: S
 
           <section aria-labelledby="sensor-alerts-title">
             <h3 id="sensor-alerts-title">Alertas de este sensor</h3>
-            {sensorAlerts.length === 0 ? (
+            {alertsState !== 'ready' ? (
+              <AlertsNotice state={alertsState} onRetry={retryAlerts} />
+            ) : sensorAlerts.length === 0 ? (
               <p>Sin alertas registradas para este sensor.</p>
             ) : (
               <ul className={styles.alerts}>

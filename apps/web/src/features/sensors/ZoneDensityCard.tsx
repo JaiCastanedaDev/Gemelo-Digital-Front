@@ -1,4 +1,4 @@
-import { STATUS_ORDER, densityByZone, type SensorStatus } from '@gd/domain';
+import { STATUS_ORDER, densityByZone, type SensorStatus, type ZoneDensity } from '@gd/domain';
 import { useMemo, useState } from 'react';
 import { Button } from '../../ui/Button';
 import { EChart } from '../../ui/chart/EChart';
@@ -6,17 +6,30 @@ import { buildDensityOption } from '../../ui/chart/barOptions';
 import { chartTheme, statusPalette } from '../../ui/chart/palette';
 import { STATUS_META } from '../../ui/statusMeta';
 import styles from './Sensors.module.css';
+import { AlertsNotice } from './StatusParts';
+import type { AlertsState } from './useSensorStatuses';
 
 const CAPTION = 'Sensores por zona y estado';
 
-export function ZoneDensityCard({ statuses }: { statuses: SensorStatus[] }) {
-  const zones = useMemo(() => densityByZone(statuses), [statuses]);
+interface ZoneDensityCardProps {
+  statuses: SensorStatus[];
+  /** Mientras las alertas no estén cargadas no se cuenta nada (desconocido no es normal). */
+  alertsState?: AlertsState;
+  onRetry?: () => void;
+}
+
+export function ZoneDensityCard({ statuses, alertsState = 'ready', onRetry = () => {} }: ZoneDensityCardProps) {
+  // Clave estructural: la gráfica solo se reconstruye cuando cambian los conteos.
+  const countsKey = JSON.stringify(densityByZone(statuses));
+  const zones = useMemo(() => JSON.parse(countsKey) as ZoneDensity[], [countsKey]);
   const option = useMemo(() => buildDensityOption(zones, statusPalette(), chartTheme()), [zones]);
   const [showTable, setShowTable] = useState(false);
   return (
     <section className={styles.card} aria-labelledby="zone-density-title">
       <h2 id="zone-density-title">Sensores por zona</h2>
-      {zones.length === 0 ? (
+      {alertsState !== 'ready' ? (
+        <AlertsNotice state={alertsState} onRetry={onRetry} />
+      ) : zones.length === 0 ? (
         <p>No hay sensores registrados.</p>
       ) : (
         <div className={styles.stack}>

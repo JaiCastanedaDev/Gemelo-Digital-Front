@@ -1,7 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { HttpResponse, http } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { resetDb } from '../../mocks/db';
+import { server } from '../../mocks/server';
 import { createTestServices, loginAs, renderApp } from '../../test/renderApp';
 
 async function openSensors(route = '/sensores') {
@@ -80,5 +82,47 @@ describe('página de sensores', () => {
     await screen.findByRole('region', { name: 'Salud del edificio' });
     expect(screen.queryByRole('region', { name: 'Sensores por zona' })).not.toBeInTheDocument();
     expect(services.queryClient.getQueryCache().find({ queryKey: ['gd', 'sensors'] })).toBeUndefined();
+  });
+
+  it('vaciar un filtro quita su parámetro de la URL', async () => {
+    const table = await openSensors('/sensores?estado=OFFLINE');
+    await userEvent.selectOptions(screen.getByLabelText('Estado'), '');
+    expect(await screen.findByRole('table', { name: 'Sensores (22)' })).toBe(table);
+    expect(within(table).getAllByRole('link')[0]?.getAttribute('href')).not.toContain('estado=');
+  });
+
+  describe('sin alertas cargadas', () => {
+    it('nunca muestra "Normal", avisa y no dibuja la densidad', async () => {
+      resetDb('critico');
+      server.use(http.get('*/api/v1/alerts', () => new HttpResponse(null, { status: 500 })));
+      const table = await openSensors();
+      const density = await screen.findByRole('region', { name: 'Sensores por zona' });
+      expect(await within(density).findByRole('alert')).toHaveTextContent(
+        'No pudimos cargar las alertas; el estado de los sensores no está completo.',
+      );
+      expect(within(density).getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+      expect(within(table).queryByText('Normal')).not.toBeInTheDocument();
+      expect(within(table).getAllByText('Estado no disponible').length).toBeGreaterThan(0);
+      expect(within(density).queryByRole('img')).not.toBeInTheDocument();
+      expect(within(density).queryByRole('button', { name: 'Ver como tabla' })).not.toBeInTheDocument();
+    });
+
+    it('el detalle del sensor tampoco lo muestra como normal', async () => {
+      server.use(http.get('*/api/v1/alerts', () => new HttpResponse(null, { status: 500 })));
+      await openSensors('/sensores?sensor=water-main');
+      const panel = await screen.findByRole('complementary', { name: 'Detalle del sensor' });
+      expect(await within(panel).findByText('Estado no disponible')).toBeInTheDocument();
+      expect(within(panel).queryByText('Normal')).not.toBeInTheDocument();
+    });
+
+    it('el home del administrador no cuenta sensores sin saber las alertas', async () => {
+      server.use(http.get('*/api/v1/alerts', () => new HttpResponse(null, { status: 500 })));
+      const services = createTestServices();
+      await loginAs(services, 'admin');
+      renderApp(services, '/');
+      const density = await screen.findByRole('region', { name: 'Sensores por zona' });
+      expect(await within(density).findByRole('alert')).toBeInTheDocument();
+      expect(within(density).queryByRole('img')).not.toBeInTheDocument();
+    });
   });
 });

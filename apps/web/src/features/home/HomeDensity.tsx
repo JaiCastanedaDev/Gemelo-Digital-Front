@@ -1,18 +1,11 @@
-import { buildSensorStatusMap } from '@gd/domain';
-import { useAlerts, useSensors } from '@gd/query';
 import { useMemo } from 'react';
-import { useNow } from '../../ui/useNow';
 import { ZoneDensityCard } from '../sensors/ZoneDensityCard';
+import { useSensorStatuses } from '../sensors/useSensorStatuses';
 
 /** Solo para ADMIN (los sensores no están disponibles para el residente). */
 export function HomeDensity() {
-  const sensors = useSensors();
-  const alerts = useAlerts('ADMIN', {});
-  const now = useNow();
-  const statuses = useMemo(
-    () => [...buildSensorStatusMap(sensors.data?.data ?? [], alerts.data?.data ?? [], now).values()],
-    [sensors.data, alerts.data, now],
-  );
+  const { sensors, alertsState, statuses, retryAlerts } = useSensorStatuses();
+  const list = useMemo(() => [...statuses.values()], [statuses]);
   if (!sensors.data) return null;
-  return <ZoneDensityCard statuses={statuses} />;
+  return <ZoneDensityCard statuses={list} alertsState={alertsState} onRetry={retryAlerts} />;
 }

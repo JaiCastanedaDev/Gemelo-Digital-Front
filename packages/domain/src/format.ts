@@ -49,3 +49,25 @@ export function formatRelative(iso: string | null | undefined, now: Date): strin
   if (hours < 24) return relativeFormat.format(-hours, 'hour');
   return relativeFormat.format(-Math.floor(hours / 24), 'day');
 }
+
+const dateFormat = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
+const dayMonthFormat = new Intl.DateTimeFormat(LOCALE, { timeZone: TIME_ZONE, day: 'numeric', month: 'short' });
+
+const TWO_DAYS_MS = 2 * 24 * 3_600_000;
+
+export function formatDate(iso: string | null | undefined): string {
+  const date = parseTimestamp(iso);
+  return date ? dateFormat.format(date) : EMPTY_VALUE;
+}
+
+/** Etiqueta de eje de tiempo en hora de Bogotá: hora para tramos de hasta 2 días; día y mes para tramos mayores. */
+export function formatAxisTick(ms: number, spanMs: number): string {
+  const date = new Date(ms);
+  return spanMs <= TWO_DAYS_MS ? timeFormat.format(date) : dayMonthFormat.format(date);
+}

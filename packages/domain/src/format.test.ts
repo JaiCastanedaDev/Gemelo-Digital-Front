@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_VALUE, formatDateTime, formatNumber, formatRelative, formatTime } from './format';
+import { EMPTY_VALUE, formatAxisTick, formatDate, formatDateTime, formatNumber, formatRelative, formatTime } from './format';
 
 /** Intl usa espacios especiales (U+00A0, U+202F); se normalizan para comparar. */
 const n = (s: string) => s.replace(/\s/g, ' ');
@@ -45,5 +45,18 @@ describe('formatRelative', () => {
   });
   it('guion para fechas inválidas', () => {
     expect(formatRelative(null, NOW)).toBe(EMPTY_VALUE);
+  });
+});
+
+describe('formatDate / formatAxisTick', () => {
+  const n = (s: string) => s.replace(/\s/g, ' ');
+  it('fecha corta en Bogotá', () => {
+    expect(n(formatDate('2026-10-03T03:00:00Z'))).toMatch(/^2 (de )?oct\.? (de )?2026$/);
+    expect(formatDate(null)).toBe('—');
+  });
+  it('hora para tramos cortos y día para tramos largos', () => {
+    const ms = Date.parse('2026-10-02T20:45:00Z');
+    expect(n(formatAxisTick(ms, 3_600_000))).toMatch(/^3:45 p\. ?m\.$/);
+    expect(n(formatAxisTick(ms, 7 * 86_400_000))).toMatch(/^2 (de )?oct\.?$/);
   });
 });

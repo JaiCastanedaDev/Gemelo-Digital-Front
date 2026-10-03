@@ -16,3 +16,4 @@
 .table th, .table td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
 .table th:first-child, .table td:first-child { text-align: left; }
 .note { color: var(--text-muted); font-size: 0.8125rem; margin: var(--space-2) 0 0; }
+.tableWrap:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

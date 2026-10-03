@@ -35,4 +35,21 @@ describe('SeriesTable', () => {
     expect(screen.getAllByRole('row')).toHaveLength(201);
     expect(screen.getByText('Se muestran las 200 lecturas más recientes de 300.')).toBeInTheDocument();
   });
+
+  it('la región desplazable es enfocable y las series con el mismo nombre no se mezclan', () => {
+    render(
+      <SeriesTable
+        caption="Dup"
+        unit={null}
+        series={[
+          { name: 'A', points: [[t0, 1]] },
+          { name: 'A', points: [[t0, 2]] },
+        ]}
+      />,
+    );
+    const region = screen.getByRole('region', { name: 'Dup (desplazable)' });
+    expect(region).toHaveAttribute('tabindex', '0');
+    const cells = within(within(screen.getByRole('table', { name: 'Dup' })).getAllByRole('row')[1]!).getAllByRole('cell');
+    expect(cells.slice(1).map((c) => c.textContent)).toEqual(['1', '2']);
+  });
 });

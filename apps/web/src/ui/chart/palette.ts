@@ -19,3 +19,20 @@ export function statusPalette(): Record<StatusLevel, string> {
     OFFLINE: cssVar('--status-offline-fg', '#344054'),
   };
 }
+
+export interface ChartTheme {
+  text: string;
+  muted: string;
+  border: string;
+}
+
+export const DEFAULT_CHART_THEME: ChartTheme = { text: '#101828', muted: '#475467', border: '#d0d5dd' };
+
+/** Colores de texto y ejes del lienzo según el tema activo (claro/oscuro). */
+export function chartTheme(): ChartTheme {
+  return {
+    text: cssVar('--text', DEFAULT_CHART_THEME.text),
+    muted: cssVar('--text-muted', DEFAULT_CHART_THEME.muted),
+    border: cssVar('--border', DEFAULT_CHART_THEME.border),
+  };
+}

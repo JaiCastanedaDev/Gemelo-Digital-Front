@@ -1,5 +1,6 @@
 import { formatAxisTick, formatDateTime, formatNumber, type SeriesPoint } from '@gd/domain';
 import type { EChartsCoreOption } from 'echarts/core';
+import { DEFAULT_CHART_THEME, type ChartTheme } from './palette';
 
 export interface ChartSeries {
   name: string;
@@ -17,6 +18,7 @@ export interface TimeSeriesOptionInput {
   palette: string[];
   spanMs: number;
   markers?: ChartMarker[];
+  theme?: ChartTheme;
 }
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -49,25 +51,37 @@ function tickLabel(value: number, spanMs: number): string {
 export function buildTimeSeriesOption(input: TimeSeriesOptionInput): EChartsCoreOption {
   const multiple = input.series.length > 1;
   const markers = input.markers ?? [];
+  const theme = input.theme ?? DEFAULT_CHART_THEME;
   return {
     animation: false,
+    textStyle: { color: theme.text },
     color: input.palette,
     grid: { left: 64, right: 16, top: multiple ? 36 : 16, bottom: 64 },
-    legend: multiple ? { top: 0, data: input.series.map((s) => s.name) } : { show: false },
+    legend: multiple ? { top: 0, data: input.series.map((s) => s.name), textStyle: { color: theme.text } } : { show: false },
     tooltip: { trigger: 'axis', formatter: (params: unknown) => tooltipHtml(params, input.unit) },
     xAxis: {
       type: 'time',
-      axisLabel: { hideOverlap: true, formatter: (value: number) => tickLabel(value, input.spanMs) },
+      axisLine: { lineStyle: { color: theme.border } },
+      axisLabel: { color: theme.muted, hideOverlap: true, formatter: (value: number) => tickLabel(value, input.spanMs) },
     },
     yAxis: {
       type: 'value',
       name: input.unit ?? '',
       scale: true,
-      axisLabel: { formatter: (value: number) => formatNumber(value, 3) },
+      nameTextStyle: { color: theme.muted },
+      axisLine: { lineStyle: { color: theme.border } },
+      splitLine: { lineStyle: { color: theme.border } },
+      axisLabel: { color: theme.muted, formatter: (value: number) => formatNumber(value, 3) },
     },
     dataZoom: [
       { type: 'inside' },
-      { type: 'slider', height: 20, bottom: 8, labelFormatter: (value: number) => tickLabel(value, input.spanMs) },
+      {
+        type: 'slider',
+        height: 20,
+        bottom: 8,
+        textStyle: { color: theme.muted },
+        borderColor: theme.border,
+        labelFormatter: (value: number) => tickLabel(value, input.spanMs) },
     ],
     series: input.series.map((s, index) => ({
       name: s.name,

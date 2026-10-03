@@ -4,6 +4,7 @@ import styles from './Chart.module.css';
 import { loadECharts } from './echartsLoader';
 
 interface EChartProps {
+  /** Memoizar con useMemo: cada cambio de identidad reaplica setOption(notMerge) y reinicia el zoom. */
   option: EChartsCoreOption;
   /** Descripción para lectores de pantalla; los datos están en la alternativa "Ver como tabla". */
   label: string;

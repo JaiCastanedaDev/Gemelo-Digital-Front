@@ -48,6 +48,16 @@ describe('buildTimeSeriesOption', () => {
     expect(option.xAxis.axisLabel.formatter(t0)).not.toBe('');
   });
 
+  it('aplica los colores del tema a texto, ejes y deslizador', () => {
+    const theme = { text: '#aaa', muted: '#bbb', border: '#ccc' };
+    const option = buildTimeSeriesOption({ ...base, theme }) as Record<string, any>;
+    expect(option.textStyle.color).toBe('#aaa');
+    expect(option.xAxis.axisLabel.color).toBe('#bbb');
+    expect(option.yAxis.axisLabel.color).toBe('#bbb');
+    expect(option.yAxis.splitLine.lineStyle.color).toBe('#ccc');
+    expect(option.dataZoom[1].textStyle.color).toBe('#bbb');
+  });
+
   it('escapeHtml', () => {
     expect(escapeHtml(`<a href="x">'&`)).toBe('&lt;a href=&quot;x&quot;&gt;&#39;&amp;');
   });

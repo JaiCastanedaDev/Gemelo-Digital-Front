@@ -35,3 +35,21 @@ describe('buildComparisonOption', () => {
     expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
   });
 });
+
+describe('tema y tooltip de densidad', () => {
+  const theme = { text: '#aaa', muted: '#bbb', border: '#ccc' };
+  it('aplica los colores del tema', () => {
+    const d = buildDensityOption([], palette, theme) as Record<string, any>;
+    expect(d.legend.textStyle.color).toBe('#aaa');
+    expect(d.xAxis.axisLabel.color).toBe('#bbb');
+    expect(d.yAxis.axisLine.lineStyle.color).toBe('#ccc');
+    const c = buildComparisonOption({ unit: 'u', current: 1, previous: null, palette: ['#1', '#2'], theme }) as Record<string, any>;
+    expect(c.textStyle.color).toBe('#aaa');
+    expect(c.yAxis.splitLine.lineStyle.color).toBe('#ccc');
+  });
+  it('el tooltip de densidad escapa zona y estado', () => {
+    const d = buildDensityOption([], palette) as Record<string, any>;
+    const html: string = d.tooltip.formatter([{ name: '<z>', seriesName: '<s>', value: 2 }]);
+    expect(html).toBe('&lt;z&gt;<br/>&lt;s&gt;: 2');
+  });
+});

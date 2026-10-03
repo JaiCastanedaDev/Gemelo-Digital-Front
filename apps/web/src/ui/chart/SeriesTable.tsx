@@ -10,26 +10,27 @@ interface SeriesTableProps {
 }
 
 export function SeriesTable({ caption, series, unit, maxRows = 200 }: SeriesTableProps) {
-  const byTime = new Map<number, Map<string, number>>();
-  for (const s of series) {
+  // Indexado por posición de la serie: dos series con el mismo nombre no se mezclan.
+  const byTime = new Map<number, Map<number, number>>();
+  series.forEach((s, index) => {
     for (const [t, v] of s.points) {
-      const row = byTime.get(t) ?? new Map<string, number>();
-      row.set(s.name, v);
+      const row = byTime.get(t) ?? new Map<number, number>();
+      row.set(index, v);
       byTime.set(t, row);
     }
-  }
+  });
   const times = [...byTime.keys()].sort((a, b) => b - a);
   const shown = times.slice(0, maxRows);
   const suffix = unit ? ` (${unit})` : '';
   return (
-    <div className={styles.tableWrap}>
+    <div className={styles.tableWrap} role="region" tabIndex={0} aria-label={`${caption} (desplazable)`}>
       <table className={styles.table}>
         <caption>{caption}</caption>
         <thead>
           <tr>
             <th scope="col">Fecha y hora</th>
-            {series.map((s) => (
-              <th key={s.name} scope="col">
+            {series.map((s, index) => (
+              <th key={index} scope="col">
                 {s.name}
                 {suffix}
               </th>
@@ -40,8 +41,8 @@ export function SeriesTable({ caption, series, unit, maxRows = 200 }: SeriesTabl
           {shown.map((t) => (
             <tr key={t}>
               <td>{formatDateTime(new Date(t).toISOString())}</td>
-              {series.map((s) => (
-                <td key={s.name}>{formatNumber(byTime.get(t)?.get(s.name), 3)}</td>
+              {series.map((_, index) => (
+                <td key={index}>{formatNumber(byTime.get(t)?.get(index), 3)}</td>
               ))}
             </tr>
           ))}

@@ -288,6 +288,28 @@ describe('fallo del acuse que sobrevive al cierre del panel', () => {
   });
 });
 
+describe('acuse con respuesta fuera de contrato', () => {
+  it('si el servidor acusa pero responde otra cosa, no se dice que falló y la alerta queda revisada', async () => {
+    resetDb('critico');
+    const id = criticalId();
+    server.use(
+      http.post('*/api/v1/alerts/:id/ack', ({ params }) => {
+        const alert = db.alerts.find((a) => a.alert_id === String(params.id));
+        if (alert) Object.assign(alert, { acknowledged: true, acknowledged_by: 'Administración Demo', acknowledged_at: new Date().toISOString() });
+        return HttpResponse.json({});
+      }),
+    );
+    const panel = await openDetail('admin', id);
+    await confirmAck(panel);
+    await waitFor(() => expect(db.alerts.find((a) => a.alert_id === id)?.acknowledged).toBe(true));
+    await waitFor(() => expect(fact(panel, 'Estado')).toHaveTextContent('Revisada'));
+    await panel.findByText('Administración Demo');
+    expect(panel.queryByRole('alert')).not.toBeInTheDocument();
+    const toasts = screen.getByRole('region', { name: 'Notificaciones' });
+    expect(within(toasts).queryByText('No se pudo marcar como revisada')).not.toBeInTheDocument();
+  });
+});
+
 describe('foco accesible del diálogo de confirmación', () => {
   it('Tab y Shift+Tab ciclan dentro del diálogo', async () => {
     resetDb('critico');

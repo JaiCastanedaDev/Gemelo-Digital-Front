@@ -1,4 +1,4 @@
-import type { AlertAdmin, AlertListResidente } from '@gd/api';
+import { ContractDriftError, type AlertAdmin, type AlertListResidente } from '@gd/api';
 import { useMutation, useQueryClient, type QueryKey, type UseMutationResult } from '@tanstack/react-query';
 import { useApi } from './ApiContext';
 import { applyAlertToCache, markAlertAcknowledged } from './alertCache';
@@ -22,7 +22,9 @@ export function useAckAlert(): UseMutationResult<AlertAdmin, unknown, string, Ac
       }
       return { snapshot };
     },
-    onError: (_error, _alertId, context) => {
+    onError: (error, _alertId, context) => {
+      // El servidor pudo haber acusado aunque su respuesta no cumpla el contrato: se conserva lo optimista y onSettled reconcilia.
+      if (error instanceof ContractDriftError) return;
       for (const [key, list] of context?.snapshot ?? []) queryClient.setQueryData(key, list);
     },
     onSuccess: (updated) => applyAlertToCache(queryClient, 'ADMIN', updated),

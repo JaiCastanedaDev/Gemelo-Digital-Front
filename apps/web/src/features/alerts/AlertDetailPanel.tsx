@@ -1,4 +1,4 @@
-import { isAdminAlert, type AlertResidente, type Role } from '@gd/api';
+import { ContractDriftError, isAdminAlert, type AlertResidente, type Role } from '@gd/api';
 import { formatDateTime, formatNumber } from '@gd/domain';
 import { useAckAlert, useAlerts } from '@gd/query';
 import { X } from 'lucide-react';
@@ -65,6 +65,8 @@ export function AlertDetailPanel({ alertId, role, onClose }: AlertDetailPanelPro
     focusHeadingAfterAck.current = true;
     // mutateAsync (y no las opciones de mutate) para que el fallo se informe aunque el panel ya se haya cerrado.
     ack.mutateAsync(target.alert_id).catch((error: unknown) => {
+      // Respuesta fuera de contrato: el servidor pudo acusar; la invalidación reconcilia y no se muestra un fallo falso.
+      if (error instanceof ContractDriftError) return;
       const reason = errorMessage(error);
       focusHeadingAfterAck.current = false;
       show({

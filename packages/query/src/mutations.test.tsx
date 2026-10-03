@@ -1,4 +1,4 @@
-import type { AlertAdmin, AlertListAdmin, Api } from '@gd/api';
+import { ContractDriftError, type AlertAdmin, type AlertListAdmin, type Api } from '@gd/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -75,5 +75,19 @@ describe('useAckAlert', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(client.getQueryData<AlertListAdmin>(allKey)?.data[0]?.acknowledged).toBe(false);
+  });
+
+  it('si la respuesta del acuse está fuera de contrato conserva el estado optimista y reconcilia por invalidación', async () => {
+    const drift = new ContractDriftError({ method: 'POST', path: '/alerts/x/ack', issues: [] });
+    const { client, wrapper } = setup(() => Promise.reject(drift));
+    client.setQueryData<AlertListAdmin>(allKey, { count: 1, data: [pendingAlert] });
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+
+    const { result } = renderHook(() => useAckAlert(), { wrapper });
+    act(() => result.current.mutate(pendingAlert.alert_id));
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData<AlertListAdmin>(allKey)?.data[0]?.acknowledged).toBe(true);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.alerts.all() });
   });
 });

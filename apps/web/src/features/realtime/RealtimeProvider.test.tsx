@@ -217,4 +217,16 @@ describe('RealtimeProvider', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(within(toastRegion()).getByRole('alert')).toHaveTextContent('Aceleración superior al umbral configurado');
   });
+
+  it('una alerta invalida también el dashboard estructural', async () => {
+    const services = createTestServices();
+    await loginAs(services, 'admin');
+    renderApp(services, '/');
+    await homeReady();
+    const invalidate = vi.spyOn(services.queryClient, 'invalidateQueries');
+    act(() => {
+      emitMockAlert({ level: 'CRITICAL' });
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.structural() });
+  });
 });

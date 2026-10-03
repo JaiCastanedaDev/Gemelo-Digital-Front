@@ -46,6 +46,7 @@ export function RealtimeProvider({ createRealtime, sound, children }: RealtimePr
       if (!role) return;
       applyAlertToCache(queryClient, role, alert);
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.general() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.structural() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.sensors.list() });
       if (alert.level === 'INFO') return; // el backend no las emite; si llegan, solo se cachean
       show(alertToast(alert));

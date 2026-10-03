@@ -119,14 +119,14 @@ export function ToastViewport() {
   const { toasts, dismiss } = useToasts();
   return (
     <section className={styles.viewport} aria-label="Notificaciones">
-      <div role="alert">
+      <div role="alert" aria-atomic="false" aria-relevant="additions">
         {toasts
           .filter((t) => t.tone === 'CRITICAL')
           .map((t) => (
             <ToastCard key={t.id} toast={t} onDismiss={dismiss} />
           ))}
       </div>
-      <div role="status">
+      <div role="status" aria-atomic="false" aria-relevant="additions">
         {toasts
           .filter((t) => t.tone === 'WARNING')
           .map((t) => (

@@ -1,3 +1,5 @@
+/* Escala de z-index: ficha de detalle móvil 120 < notificaciones 150 < panel de desarrollo 200 < ConfirmDialog 300 < ReloginModal 400.
+   Las notificaciones quedan por debajo de los diálogos modales para no ser accionables sobre ellos. */
 :root {
   color-scheme: light dark;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;

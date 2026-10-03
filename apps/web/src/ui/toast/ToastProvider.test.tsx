@@ -117,3 +117,13 @@ describe('capToasts', () => {
     expect(capToasts([critical('c3'), critical('c2'), critical('c1')], 2).map((t) => t.id)).toEqual(['c3', 'c2']);
   });
 });
+
+describe('regiones vivas', () => {
+  it('solo anuncian lo que se añade, no releen las notificaciones existentes', () => {
+    const { criticalRegion, warningRegion } = renderToasts();
+    for (const region of [criticalRegion(), warningRegion()]) {
+      expect(region).toHaveAttribute('aria-atomic', 'false');
+      expect(region).toHaveAttribute('aria-relevant', 'additions');
+    }
+  });
+});

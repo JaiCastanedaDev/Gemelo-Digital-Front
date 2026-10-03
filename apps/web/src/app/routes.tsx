@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router';
 import { AlertsPage } from '../features/alerts/AlertsPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { HomePage } from '../features/home/HomePage';
+import { SensorsPage } from '../features/sensors/SensorsPage';
 import { RequireAuth } from './guards/RequireAuth';
 import { RequireRole } from './guards/RequireRole';
 import { AppShell } from './layout/AppShell';
@@ -26,7 +27,7 @@ export function AppRoutes() {
           <Route path="estructural" element={<PendingSection title="Estructural" />} />
           <Route path="consumos" element={<PendingSection title="Consumos" />} />
           <Route path="gemelo" element={<PendingSection title="Gemelo 3D" />} />
-          <Route path="sensores" element={<PendingSection title="Sensores" />} />
+          <Route path="sensores" element={<SensorsPage />} />
           <Route path="mantenimiento" element={<PendingSection title="Mantenimiento" />} />
           <Route path="reportes" element={<PendingSection title="Reportes" />} />
         </Route>

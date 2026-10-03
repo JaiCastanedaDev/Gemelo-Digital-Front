@@ -6,6 +6,7 @@ import { AlertKpis } from './AlertKpis';
 import { CategoryLinks } from './CategoryLinks';
 import { CriticalBanner } from './CriticalBanner';
 import { HealthScoreCard } from './HealthScoreCard';
+import { HomeDensity } from './HomeDensity';
 import styles from './Home.module.css';
 import { SensorKpis } from './SensorKpis';
 
@@ -39,6 +40,8 @@ export function HomePage() {
           )}
         </section>
       )}
+
+      {isAdmin && <HomeDensity />}
 
       <CategoryLinks role={role} />
 

@@ -8,3 +8,6 @@ export * from './alertOrder';
 export * from './timeRange';
 export * from './series';
 export * from './downsample';
+export * from './consumption';
+export * from './density';
+export * from './comfort';

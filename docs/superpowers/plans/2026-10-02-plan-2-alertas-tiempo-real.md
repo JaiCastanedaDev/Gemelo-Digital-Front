@@ -4391,3 +4391,10 @@ git commit -m "test(web): E2E de alertas en tiempo real, acuse y conexión"
 | §10.1 Centro de alertas: filtros, orden, ocurrencias, detalle, acuse con confirmación, optimista, enlaces a sensor/3D/mantenimiento | Tasks 9, 10 | Páginas destino de esos enlaces (Planes 3, 4, 5) |
 | §11 Accesibilidad (regiones vivas, diálogo, foco, objetivos ≥44 px) | Tasks 5, 8, 10, 11 | — |
 | §12.2 Socket simulado + panel `?dev=1` | Task 4 | — |
+
+## Notas de ejecución (2026-10-02)
+
+- Rulings de ejecución: P2-R2 (invalidar tras `tokenChanged`), P2-R3 (`describeInvalidPayload` sin payload crudo), P2-R4 (`clear` de toasts y título al pasar a anónimo o cambiar de `sub`), P2-R5 (los tests esperan los datos antes de emitir), P2-R6 (foco visible de la fila seleccionada), P2-R7 (primera/última vez no implementada), P2-R8 (el fallo del acuse también se avisa por toast WARNING), R-I3 (un `ContractDriftError` en el acuse no revierte lo optimista; la invalidación reconcilia). Además, la invalidación de alertas y estado general ahora ocurre en cada transición a `connected`, incluida la primera.
+- Pendiente (no implementado): filtros por sensor y por fechas del §10.1 → Plan 3 (junto a la tabla de sensores). Móvil 390 px: añadido el test E2E `mobile-header.spec.ts`.
+- Pedidos al backend para el spec §14: (1) semántica del rechazo del handshake (qué `connect_error`/data distingue token inválido o vencido de otros rechazos); (2) payload de `alert:new` por rol (¿quita números para RESIDENTE? ¿salas por edificio? ¿nunca emite INFO?); (3) cuerpo de respuesta de `POST /alerts/:id/ack` (se asume la alerta admin completa) y si `acknowledged_by` es id o nombre; (4) primera/última ocurrencia; (5) `alert:updated`.
+- Interfaces que deben respetar los Planes 3–5: rutas `/sensores?sensor=`, `/gemelo?sensor=`, `/mantenimiento?nueva=1&descripcion=`; el Plan 3 debe añadir `dashboard/structural` y las claves de estado de sensores/3D a las invalidaciones de `RealtimeProvider.handleAlert`, y `sensors` a `useAckAlert.onSettled`; el Plan 5 debe incluir `contract.spec` del handshake y del acuse; todo plan nuevo con una comprobación a 390 px.

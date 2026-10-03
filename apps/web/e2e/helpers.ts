@@ -14,3 +14,8 @@ export async function login(page: Page, email: string, password = PASSWORD, path
 export async function expectHome(page: Page) {
   await expect(page.getByRole('heading', { name: 'Estado general', level: 1 })).toBeVisible();
 }
+
+/** Espera a que los datos estén renderizados (el cliente en tiempo real ya se suscribió). */
+export async function waitForAppData(page: Page) {
+  await expect(page.getByRole('link', { name: /^Alertas: \d+ sin revisar/ })).toBeVisible();
+}

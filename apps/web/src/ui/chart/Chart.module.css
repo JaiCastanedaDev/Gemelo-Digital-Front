@@ -1,0 +1,18 @@
+.chart { width: 100%; min-width: 0; }
+.ranges { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.range {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.range[aria-pressed='true'] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+.tableWrap { overflow-x: auto; max-height: 360px; overflow-y: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.table caption { text-align: left; font-weight: 600; padding-bottom: var(--space-2); }
+.table th, .table td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+.table th:first-child, .table td:first-child { text-align: left; }
+.note { color: var(--text-muted); font-size: 0.8125rem; margin: var(--space-2) 0 0; }

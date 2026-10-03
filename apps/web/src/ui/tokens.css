@@ -21,6 +21,9 @@
   --status-ok-bg: #dcfae6;
   --status-offline-fg: #344054;
   --status-offline-bg: #eaecf0;
+  --chart-1: #175cd3;
+  --chart-2: #b42318;
+  --chart-3: #067647;
   --radius: 8px;
   --space-1: 4px;
   --space-2: 8px;
@@ -50,6 +53,9 @@
     --status-ok-bg: #053321;
     --status-offline-fg: #cecfd2;
     --status-offline-bg: #333741;
+    --chart-1: #84caff;
+    --chart-2: #fda29b;
+    --chart-3: #75e0a7;
   }
 }
 

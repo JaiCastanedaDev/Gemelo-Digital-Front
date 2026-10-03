@@ -72,4 +72,46 @@ describe('useSensorReadings', () => {
     expect(result.current.isPending).toBe(false);
     expect(result.current.readings).toEqual([]);
   });
+
+  it('un refetch del tramo abierto con datos iguales conserva la identidad y con datos distintos la cambia', async () => {
+    const { readings, wrapper } = setup();
+    const { result } = renderHook(() => useSensorReadings('acc-1', '24h'), { wrapper });
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    const first = result.current.readings;
+    const updatedAt = result.current.dataUpdatedAt;
+
+    vi.setSystemTime(new Date(NOW.getTime() + 1_000));
+    result.current.refetch();
+    await waitFor(() => expect(result.current.dataUpdatedAt).toBeGreaterThan(updatedAt));
+    expect(result.current.readings).toBe(first);
+
+    readings.mockImplementation(async (_id, range) => [
+      { timestamp: range.desde ?? '', unit: 'g', values: { x: 2 }, battery_pct: 90 },
+    ]);
+    const updatedAt2 = result.current.dataUpdatedAt;
+    vi.setSystemTime(new Date(NOW.getTime() + 2_000));
+    result.current.refetch();
+    await waitFor(() => expect(result.current.dataUpdatedAt).toBeGreaterThan(updatedAt2));
+    expect(result.current.readings).not.toBe(first);
+  });
+
+  it('un tramo que se cierra con datos anteriores a su fin se vuelve a pedir una sola vez', async () => {
+    vi.setSystemTime(new Date('2026-10-02T23:59:30Z'));
+    const { readings, wrapper } = setup();
+    const { result, rerender } = renderHook(() => useSensorReadings('acc-1', '24h'), { wrapper });
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    const day = (c: unknown[]) => (c[1] as { desde: string }).desde;
+    const count = () => readings.mock.calls.filter((c) => day(c) === '2026-10-02T00:00:00.000Z').length;
+    expect(count()).toBe(1);
+
+    vi.setSystemTime(new Date('2026-10-03T00:00:30Z'));
+    rerender();
+    await waitFor(() => expect(count()).toBe(2));
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+
+    vi.setSystemTime(new Date('2026-10-03T00:02:00Z'));
+    rerender();
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(count()).toBe(2);
+  });
 });

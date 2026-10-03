@@ -1,7 +1,7 @@
 import type { Reading } from '@gd/api';
 import { MAX_READINGS_PER_RANGE, dailyChunks, rangeWindow, type RangeKey, type TimeWindow } from '@gd/domain';
 import { useQueries } from '@tanstack/react-query';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useApi } from './ApiContext';
 import { POLL_INTERVALS_MS } from './intervals';
 import { queryKeys } from './keys';
@@ -38,21 +38,45 @@ export function useSensorReadings(sensorId: string | null, range: RangeKey): Sen
       queryKey: queryKeys.readings.chunk(sensorId ?? '', chunk.desde, chunk.hasta),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
         api.sensors.readings(sensorId ?? '', { desde: chunk.desde, hasta: chunk.hasta }, signal),
-      staleTime: chunk.closed ? Number.POSITIVE_INFINITY : OPEN_CHUNK_STALE_MS,
+      // Un tramo que se cerró (medianoche UTC) con datos anteriores a su `hasta` se vuelve a pedir una vez para completar su cola.
+      staleTime: chunk.closed
+        ? (query: { state: { dataUpdatedAt: number } }) =>
+            query.state.dataUpdatedAt >= Date.parse(chunk.hasta) ? Number.POSITIVE_INFINITY : 0
+        : OPEN_CHUNK_STALE_MS,
       refetchInterval: chunk.closed ? (false as const) : POLL_INTERVALS_MS.sensors,
     })),
   });
 
-  // Identidad estable de `readings` mientras ningún tramo cambie (evita recalcular series y reenviar al Worker).
+  // Cambiar `staleTime` no relanza un tramo ya montado: al cerrarse (medianoche UTC) con datos anteriores a su `hasta`,
+  // se refresca una sola vez por tramo para recuperar la cola del día.
+  const closedRefetched = useRef(new Set<string>());
+  useEffect(() => {
+    chunks.forEach((chunk, i) => {
+      const r = results[i];
+      if (!chunk.closed || !r || r.data === undefined || r.isFetching) return;
+      if (r.dataUpdatedAt >= Date.parse(chunk.hasta)) return;
+      const id = `${sensorId ?? ''}|${chunk.desde}`;
+      if (closedRefetched.current.has(id)) return;
+      closedRefetched.current.add(id);
+      void r.refetch();
+    });
+  });
+
+  // Identidad estable de `readings`: solo cambia cuando cambia la referencia de los datos de algún tramo
+  // (el structural sharing de TanStack conserva `data` si un refetch devuelve lo mismo, aunque suba dataUpdatedAt).
   const resultsRef = useRef(results);
   resultsRef.current = results;
-  const version = results.map((r) => `${r.dataUpdatedAt}:${r.data ? 1 : 0}`).join('|');
-  const readings = useMemo(() => {
-    const merged = resultsRef.current.flatMap((r) => r.data ?? []);
-    return merged.length === 0 ? EMPTY : merged;
-    // `version` resume los datos de los tramos (la dependencia real); `results` cambia de identidad en cada render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version]);
+  const prevRef = useRef<{ datas: (Reading[] | undefined)[]; merged: Reading[] } | null>(null);
+  const datas = results.map((r) => r.data);
+  const prev = prevRef.current;
+  let readings: Reading[];
+  if (prev && prev.datas.length === datas.length && prev.datas.every((d, i) => d === datas[i])) {
+    readings = prev.merged;
+  } else {
+    const merged = datas.flatMap((d) => d ?? []);
+    readings = merged.length === 0 ? EMPTY : merged;
+    prevRef.current = { datas, merged: readings };
+  }
 
   return {
     readings,

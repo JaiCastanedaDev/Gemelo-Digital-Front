@@ -1,7 +1,7 @@
 import type { AlertResidente } from '@gd/api';
 import { queryKeys } from '@gd/query';
 import type { RealtimeClient } from '@gd/realtime';
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { db, resetDb } from '../../mocks/db';
 import { emitMockAlert } from '../../mocks/emit';
@@ -133,6 +133,19 @@ describe('RealtimeProvider', () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.alerts.all() });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.general() });
+  });
+
+  it('la primera conexión también recupera alertas y estado general (lo emitido entre la consulta HTTP y el handshake)', async () => {
+    const services = createTestServices();
+    await loginAs(services, 'admin');
+    const invalidate = vi.spyOn(services.queryClient, 'invalidateQueries');
+    renderApp(services, '/');
+    await homeReady();
+
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.alerts.all() });
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.general() });
+    });
   });
 
   it('en el escenario crítico la crítica nueva reemplaza la ocurrencia en vez de duplicarla', async () => {

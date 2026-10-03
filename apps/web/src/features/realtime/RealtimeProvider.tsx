@@ -85,16 +85,13 @@ export function RealtimeProvider({ createRealtime, sound, children }: RealtimePr
     const client = createRealtime(role);
     clientRef.current = client;
     tokenAtStartRef.current = accessTokenRef.current;
-    let hasConnected = false;
     const offStatus = client.onStatus((next) => {
       setStatus(next);
       if (next !== 'connected') return;
-      if (hasConnected) {
-        // Reconexión: recuperar lo que pudo llegar mientras no había socket.
-        void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.general() });
-      }
-      hasConnected = true;
+      // En cada conexión (también la primera): recuperar lo emitido entre la consulta HTTP y el handshake,
+      // o mientras no había socket.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.general() });
     });
     const offAlert = client.onAlert((alert) => handleAlertRef.current(alert));
     client.start();

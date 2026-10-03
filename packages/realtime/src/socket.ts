@@ -1,4 +1,4 @@
-import { io } from 'socket.io-client';
+import { io, type ManagerOptions, type SocketOptions } from 'socket.io-client';
 
 export type SocketListener = (...args: unknown[]) => void;
 
@@ -21,14 +21,20 @@ export interface SocketFactoryOptions {
 
 export type SocketFactory = (options: SocketFactoryOptions) => SocketLike;
 
-export const ioSocketFactory: SocketFactory = ({ url, path, getToken }) => {
-  const socket = io(url, {
+export function socketOptions(getToken: () => string | null, path: string): Partial<ManagerOptions & SocketOptions> {
+  return {
     path,
     autoConnect: false,
     transports: ['websocket', 'polling'],
+    // Sin esto, si el websocket falla (proxy, red corporativa) nunca se prueba polling.
+    tryAllTransports: true,
     // Se evalúa en cada (re)conexión: siempre viaja el access token vigente.
     auth: (cb) => cb({ token: getToken() }),
-  });
+  };
+}
+
+export const ioSocketFactory: SocketFactory = ({ url, path, getToken }) => {
+  const socket = io(url, socketOptions(getToken, path));
   return {
     get connected() {
       return socket.connected;

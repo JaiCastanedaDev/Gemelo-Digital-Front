@@ -130,6 +130,9 @@ importers:
       '@gd/api':
         specifier: workspace:*
         version: link:../api
+      '@gd/domain':
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.104.1

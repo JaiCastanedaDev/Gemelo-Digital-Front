@@ -33,6 +33,9 @@ export function useAckAlert(): UseMutationResult<AlertAdmin, unknown, string, Ac
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.general() }),
+        // El estado de cada sensor depende de sus alertas sin revisar (spec §5.3).
+        queryClient.invalidateQueries({ queryKey: queryKeys.sensors.list() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.structural() }),
       ]);
     },
   });

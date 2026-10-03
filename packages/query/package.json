@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gd/api": "workspace:*"
+    "@gd/api": "workspace:*",
+    "@gd/domain": "workspace:*"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5",

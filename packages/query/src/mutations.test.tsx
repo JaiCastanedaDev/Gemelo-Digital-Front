@@ -102,4 +102,14 @@ describe('useAckAlert', () => {
     expect(client.getQueryData<AlertListAdmin>(allKey)?.data[0]?.acknowledged).toBe(true);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.alerts.all() });
   });
+
+  it('al terminar invalida también sensores y el dashboard estructural', async () => {
+    const { client, wrapper } = setup(async () => ({ ...pendingAlert, acknowledged: true }));
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useAckAlert(), { wrapper });
+    act(() => result.current.mutate(pendingAlert.alert_id));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.sensors.list() });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.structural() });
+  });
 });

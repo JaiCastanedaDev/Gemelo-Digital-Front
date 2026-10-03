@@ -1,7 +1,6 @@
 import type { Sensor } from '@gd/api';
 import {
   RANGE_MS,
-  formatNumber,
   measuredChange,
   readingsToSeries,
   shorterRange,
@@ -17,7 +16,7 @@ import { RANGE_LABEL, RangeSelector } from '../../ui/chart/RangeSelector';
 import { SeriesTable } from '../../ui/chart/SeriesTable';
 import { chartTheme, seriesPalette } from '../../ui/chart/palette';
 import { buildTimeSeriesOption, type ChartMarker } from '../../ui/chart/timeSeriesOption';
-import { seriesLabel } from './seriesCopy';
+import { formatChange, seriesLabel } from './seriesCopy';
 import styles from './Series.module.css';
 import { useDownsampledSeries } from './useDownsampledSeries';
 
@@ -61,7 +60,7 @@ export function SensorSeriesPanel({ sensor, range, onRangeChange, markers = NO_M
   let body;
   if (data.isPending || downsampled.pending) {
     body = <div className={styles.skeleton} role="status" aria-busy="true" aria-label="Cargando lecturas" />;
-  } else if (data.isError) {
+  } else if (data.isError && !data.partialError) {
     body = (
       <div className={styles.error} role="alert">
         <p>{errorMessage(data.error)}</p>
@@ -86,11 +85,18 @@ export function SensorSeriesPanel({ sensor, range, onRangeChange, markers = NO_M
   } else {
     body = (
       <>
+        {data.partialError && (
+          <div className={styles.error} role="alert">
+            <p>No se pudieron cargar algunas lecturas; la gráfica puede estar incompleta.</p>
+            <Button variant="secondary" onClick={data.refetch}>
+              Reintentar
+            </Button>
+          </div>
+        )}
         <EChart option={option} label={`Serie de ${sensor.name}, ${RANGE_LABEL[range]}`} />
         {change !== null && (
           <p className={styles.change}>
-            Cambio medido en el periodo: {change >= 0 ? '+' : '−'}
-            {formatNumber(Math.abs(change), 2)} {sensor.unit ?? ''}
+            Cambio medido en el periodo: {formatChange(change, sensor.unit)}
           </p>
         )}
         <div>

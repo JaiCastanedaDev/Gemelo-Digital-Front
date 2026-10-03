@@ -79,4 +79,56 @@ describe('SensorDetailPanel', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('un fallo al cargar sensores se muestra con Reintentar y no como inexistente', async () => {
+    server.use(
+      http.get('*/api/v1/sensors', () => HttpResponse.json({ error: { code: 'X', message: 'Falla simulada' } }, { status: 500 })),
+    );
+    const panel = await open('water-main');
+    expect(await panel.findByRole('alert')).toBeInTheDocument();
+    expect(panel.queryByText('No encontramos este sensor.')).not.toBeInTheDocument();
+    server.resetHandlers();
+    await userEvent.click(panel.getByRole('button', { name: 'Reintentar' }));
+    expect(await panel.findByRole('heading', { name: 'Medidor acueducto principal' })).toBeInTheDocument();
+  });
+
+  it('Escape no cierra el panel si hay un diálogo modal abierto', async () => {
+    const onClose = vi.fn();
+    await open('water-main', onClose);
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    document.body.appendChild(modal);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    modal.remove();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('Escape ya gestionado (defaultPrevented) no cierra el panel', async () => {
+    const onClose = vi.fn();
+    await open('water-main', onClose);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    event.preventDefault();
+    document.dispatchEvent(event);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('avisa si algunos tramos de lecturas fallaron', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/sensors/:id/data', () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ error: { code: 'X', message: 'falla' } }, { status: 500 })
+          : HttpResponse.json([{ timestamp: new Date(Date.now() - 120_000).toISOString(), unit: 'L/s', values: { flow: 1 }, battery_pct: 90 }]);
+      }),
+    );
+    const panel = await open('water-main');
+    expect(
+      await panel.findByText('No se pudieron cargar algunas lecturas; la gráfica puede estar incompleta.'),
+    ).toBeInTheDocument();
+    expect(panel.getByRole('img', { name: /Serie de/ })).toBeInTheDocument();
+  });
 });

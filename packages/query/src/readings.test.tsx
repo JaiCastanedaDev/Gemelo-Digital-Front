@@ -114,4 +114,23 @@ describe('useSensorReadings', () => {
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(count()).toBe(2);
   });
+
+  it('partialError: un tramo falla pero otro tiene datos', async () => {
+    const { readings, wrapper } = setup();
+    readings.mockImplementation(async (_id, range) => {
+      if (range.desde === '2026-10-01T00:00:00.000Z') throw new Error('falla');
+      return [{ timestamp: range.desde ?? '', unit: 'g', values: { x: 1 }, battery_pct: 90 }];
+    });
+    const { result } = renderHook(() => useSensorReadings('acc-1', '24h'), { wrapper });
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(result.current.partialError).toBe(true);
+    expect(result.current.readings).toHaveLength(1);
+  });
+
+  it('partialError es false cuando todo carga', async () => {
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useSensorReadings('acc-1', '24h'), { wrapper });
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(result.current.partialError).toBe(false);
+  });
 });

@@ -11,6 +11,8 @@ export interface SensorReadings {
   window: TimeWindow;
   isPending: boolean;
   isError: boolean;
+  /** Algún tramo falló pero otros sí tienen datos: la serie puede estar incompleta. */
+  partialError: boolean;
   error: unknown;
   dataUpdatedAt: number;
   tooMany: boolean;
@@ -83,6 +85,7 @@ export function useSensorReadings(sensorId: string | null, range: RangeKey): Sen
     window,
     isPending: results.some((r) => r.isPending),
     isError: results.some((r) => r.isError && r.data === undefined),
+    partialError: results.some((r) => r.isError) && results.some((r) => !r.isError && r.data !== undefined),
     error: results.find((r) => r.isError)?.error ?? null,
     dataUpdatedAt: results.reduce((latest, r) => Math.max(latest, r.dataUpdatedAt), 0),
     tooMany: readings.length > MAX_READINGS_PER_RANGE,

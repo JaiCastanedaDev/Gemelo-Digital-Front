@@ -3,6 +3,8 @@ import { useAlerts, useSensors } from '@gd/query';
 import { X } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router';
+import { errorMessage } from '../../app/errorMessage';
+import { Button } from '../../ui/Button';
 import { StatusBadge } from '../../ui/StatusBadge';
 import { STATUS_META } from '../../ui/statusMeta';
 import { useNow } from '../../ui/useNow';
@@ -43,7 +45,10 @@ export function SensorDetailPanel({ sensorId, range, onRangeChange, onClose }: S
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      // Un diálogo modal abierto encima atiende su propio Escape.
+      if (document.querySelector('[aria-modal="true"]')) return;
+      onClose();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -62,6 +67,13 @@ export function SensorDetailPanel({ sensorId, range, onRangeChange, onClose }: S
 
       {sensors.isPending ? (
         <p role="status">Cargando sensor…</p>
+      ) : sensors.isError ? (
+        <div role="alert">
+          <p>{errorMessage(sensors.error)}</p>
+          <Button variant="secondary" onClick={() => void sensors.refetch()}>
+            Reintentar
+          </Button>
+        </div>
       ) : !sensor ? (
         <p>No encontramos este sensor.</p>
       ) : (

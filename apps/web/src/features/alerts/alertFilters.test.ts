@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiFilters, readAlertsView, writeAlertsView } from './alertFilters';
+import { apiFilters, matchesClientFilters, readAlertsView, writeAlertsView } from './alertFilters';
 
 describe('alertFilters', () => {
   it('lee nivel, estado, categoría y alerta', () => {
@@ -28,5 +28,37 @@ describe('alertFilters', () => {
       acknowledged: false,
     });
     expect(apiFilters({})).toEqual({});
+  });
+});
+
+describe('filtros de sensor y fechas', () => {
+  it('lee y escribe sensor y fechas válidos', () => {
+    const view = readAlertsView(new URLSearchParams('sensor=acc-t1-sotano&desde=2026-10-01&hasta=2026-10-02'));
+    expect(view).toEqual({ sensorId: 'acc-t1-sotano', from: '2026-10-01', to: '2026-10-02' });
+    expect(writeAlertsView({ ...view, level: 'CRITICAL', alertId: 'x' }).toString()).toBe(
+      'nivel=CRITICAL&sensor=acc-t1-sotano&desde=2026-10-01&hasta=2026-10-02&alerta=x',
+    );
+  });
+
+  it('ignora fechas inválidas y sensores maliciosos', () => {
+    expect(readAlertsView(new URLSearchParams('sensor=%3Cx%3E&desde=2026-02-30&hasta=ayer'))).toEqual({});
+  });
+
+  it('filtra por sensor y por día de Bogotá; un rango invertido no filtra fechas', () => {
+    const alert = {
+      alert_id: 'a',
+      building_id: 'b',
+      sensor_id: 's1',
+      level: 'WARNING' as const,
+      category: 'structural',
+      message: 'm',
+      timestamp: '2026-10-02T04:30:00Z', // 1 oct, 11:30 p. m. en Bogotá
+      acknowledged: false,
+    };
+    expect(matchesClientFilters(alert, { sensorId: 's1' })).toBe(true);
+    expect(matchesClientFilters(alert, { sensorId: 's2' })).toBe(false);
+    expect(matchesClientFilters(alert, { from: '2026-10-01', to: '2026-10-01' })).toBe(true);
+    expect(matchesClientFilters(alert, { from: '2026-10-02' })).toBe(false);
+    expect(matchesClientFilters(alert, { from: '2026-10-05', to: '2026-10-01' })).toBe(true);
   });
 });

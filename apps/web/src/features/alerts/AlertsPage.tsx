@@ -8,12 +8,11 @@ import { DataState } from '../../ui/DataState';
 import { AlertDetailPanel } from './AlertDetailPanel';
 import { AlertFiltersBar } from './AlertFiltersBar';
 import { AlertList } from './AlertList';
-import { apiFilters, readAlertsView, writeAlertsView, type AlertsView } from './alertFilters';
+import { apiFilters, matchesClientFilters, readAlertsView, writeAlertsView, type AlertsView } from './alertFilters';
 import styles from './Alerts.module.css';
 
 function visibleAlerts(alerts: AlertResidente[], view: AlertsView): AlertResidente[] {
-  const filtered = view.category ? alerts.filter((a) => a.category === view.category) : alerts;
-  return sortAlertsForInbox(filtered);
+  return sortAlertsForInbox(alerts.filter((a) => matchesClientFilters(a, view)));
 }
 
 export function AlertsPage() {
@@ -36,13 +35,19 @@ export function AlertsPage() {
 
   if (!session) return null;
 
+  const sensorOptions = [...new Set((query.data?.data ?? []).map((a) => a.sensor_id))].sort();
+
   return (
     <div className={styles.page}>
       <header>
         <h1>Alertas</h1>
         <p className={styles.intro}>Avisos de cambios medibles detectados en las zonas comunes.</p>
       </header>
-      <AlertFiltersBar view={view} onChange={(next) => setParams(writeAlertsView(next), { replace: true })} />
+      <AlertFiltersBar
+        view={view}
+        sensorOptions={sensorOptions}
+        onChange={(next) => setParams(writeAlertsView(next), { replace: true })}
+      />
       <div className={styles.layout} data-detail={view.alertId ? 'open' : undefined}>
         <section aria-label="Lista de alertas">
           <DataState

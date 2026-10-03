@@ -1,5 +1,5 @@
-import { fireEvent, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resetDb } from '../../mocks/db';
 import { createTestServices, loginAs, renderApp } from '../../test/renderApp';
 
@@ -59,5 +59,40 @@ describe('centro de alertas', () => {
     await loginAs(services, 'admin');
     renderApp(services, '/alertas');
     expect(await screen.findByText('No hay alertas con estos filtros.')).toBeInTheDocument();
+  });
+});
+
+describe('filtros de sensor y fechas', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('filtra por sensor desde la URL', async () => {
+    resetDb('critico');
+    const list = await openAlerts('admin', '/alertas?sensor=acc-t1-sotano');
+    // En crítico, acc-t1-sotano tiene exactamente una alerta (CRITICAL, ocurrencia 12).
+    expect(list.getAllByRole('link')).toHaveLength(1);
+    expect(list.getByRole('link')).toHaveTextContent('Crítico');
+  });
+
+  it('filtra por fechas en hora de Bogotá', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-02T18:00:00Z')); // 1:00 p. m. en Bogotá: las alertas sembradas caen el 2 oct
+    resetDb('critico');
+    const all = (await openAlerts('admin')).getAllByRole('link').length;
+    cleanup();
+    const today = await openAlerts('admin', '/alertas?desde=2026-10-02&hasta=2026-10-02');
+    expect(today.getAllByRole('link')).toHaveLength(all);
+    cleanup();
+    const services = createTestServices();
+    await loginAs(services, 'admin');
+    renderApp(services, '/alertas?desde=2026-10-03');
+    expect(await screen.findByText('No hay alertas con estos filtros.')).toBeInTheDocument();
+  });
+
+  it('un rango invertido avisa y no filtra', async () => {
+    resetDb('critico');
+    await openAlerts('admin', '/alertas?desde=2026-10-05&hasta=2026-10-01');
+    expect(screen.getByText('La fecha inicial es posterior a la final; no se aplica el filtro de fechas.')).toBeInTheDocument();
   });
 });

@@ -58,7 +58,8 @@ describe('useAckAlert', () => {
     act(() => result.current.mutate(pendingAlert.alert_id));
 
     await waitFor(() => expect(client.getQueryData<AlertListAdmin>(allKey)?.data[0]?.acknowledged).toBe(true));
-    expect(client.getQueryData<AlertListAdmin>(unackedKey)?.data[0]?.acknowledged).toBe(true);
+    // La lista filtrada por sin revisar pierde la alerta al instante (la campana, el banner y "Sin revisar" dejan de contarla).
+    expect(client.getQueryData<AlertListAdmin>(unackedKey)?.data).toHaveLength(0);
 
     server.resolve({ ...pendingAlert, acknowledged: true, acknowledged_by: 'Administración Demo', acknowledged_at: '2026-10-02T15:05:00Z' });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -75,6 +76,17 @@ describe('useAckAlert', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(client.getQueryData<AlertListAdmin>(allKey)?.data[0]?.acknowledged).toBe(false);
+  });
+
+  it('si el servidor falla la lista de sin revisar recupera la alerta', async () => {
+    const { client, wrapper } = setup(() => Promise.reject(new Error('fallo simulado')));
+    client.setQueryData<AlertListAdmin>(unackedKey, { count: 1, data: [pendingAlert] });
+
+    const { result } = renderHook(() => useAckAlert(), { wrapper });
+    act(() => result.current.mutate(pendingAlert.alert_id));
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(client.getQueryData<AlertListAdmin>(unackedKey)?.data).toEqual([pendingAlert]);
   });
 
   it('si la respuesta del acuse está fuera de contrato conserva el estado optimista y reconcilia por invalidación', async () => {

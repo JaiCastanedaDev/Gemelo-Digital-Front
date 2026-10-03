@@ -25,7 +25,14 @@ export function markAlertAcknowledged<T extends AlertResidente>(list: AlertList<
   };
 }
 
-function filtersFromKey(key: readonly unknown[]): AlertFilters {
+/** Acuse optimista respetando los filtros: sale de las listas "sin revisar" y queda marcada en las demás. */
+export function acknowledgeInList<T extends AlertResidente>(list: AlertList<T>, alertId: string, filters: AlertFilters): AlertList<T> {
+  const item = list.data.find((candidate) => candidate.alert_id === alertId);
+  if (!item) return list;
+  return upsertAlertList(list, { ...item, acknowledged: true }, filters);
+}
+
+export function filtersFromKey(key: readonly unknown[]): AlertFilters {
   const filters = key[3];
   return typeof filters === 'object' && filters !== null ? (filters as AlertFilters) : {};
 }

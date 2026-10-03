@@ -1,7 +1,7 @@
 import { ContractDriftError, type AlertAdmin, type AlertListResidente } from '@gd/api';
 import { useMutation, useQueryClient, type QueryKey, type UseMutationResult } from '@tanstack/react-query';
 import { useApi } from './ApiContext';
-import { applyAlertToCache, markAlertAcknowledged } from './alertCache';
+import { acknowledgeInList, applyAlertToCache, filtersFromKey } from './alertCache';
 import { queryKeys } from './keys';
 
 export interface AckContext {
@@ -18,7 +18,7 @@ export function useAckAlert(): UseMutationResult<AlertAdmin, unknown, string, Ac
       await queryClient.cancelQueries({ queryKey: queryKeys.alerts.all() });
       const snapshot = queryClient.getQueriesData<AlertListResidente>({ queryKey: queryKeys.alerts.all() });
       for (const [key, list] of snapshot) {
-        if (list) queryClient.setQueryData(key, markAlertAcknowledged(list, alertId));
+        if (list) queryClient.setQueryData(key, acknowledgeInList(list, alertId, filtersFromKey(key)));
       }
       return { snapshot };
     },

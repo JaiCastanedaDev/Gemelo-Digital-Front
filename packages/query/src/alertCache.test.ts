@@ -1,7 +1,7 @@
 import type { AlertListAdmin, AlertAdmin } from '@gd/api';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import { applyAlertToCache, markAlertAcknowledged, upsertAlertList } from './alertCache';
+import { acknowledgeInList, applyAlertToCache, markAlertAcknowledged, upsertAlertList } from './alertCache';
 import { queryKeys } from './keys';
 
 const alert = (id: string, overrides: Partial<AlertAdmin> = {}): AlertAdmin => ({
@@ -54,6 +54,29 @@ describe('markAlertAcknowledged', () => {
     const list = { count: 2, data: [alert('a'), alert('b')] };
     const next = markAlertAcknowledged(list, 'b');
     expect(next.data.map((x) => x.acknowledged)).toEqual([false, true]);
+  });
+});
+
+describe('acknowledgeInList', () => {
+  it('quita la alerta de una lista filtrada por sin revisar', () => {
+    const list = { count: 2, data: [alert('a'), alert('b')] };
+    const next = acknowledgeInList(list, 'a', { acknowledged: false });
+    expect(next.data.map((x) => x.alert_id)).toEqual(['b']);
+    expect(next.count).toBe(1);
+  });
+
+  it('la deja marcada en la lista sin filtrar', () => {
+    const list = { count: 2, data: [alert('a'), alert('b')] };
+    const next = acknowledgeInList(list, 'a', {});
+    expect(next.data.map((x) => [x.alert_id, x.acknowledged])).toEqual([
+      ['a', true],
+      ['b', false],
+    ]);
+  });
+
+  it('no cambia nada si la alerta no está en la lista', () => {
+    const list = { count: 1, data: [alert('b')] };
+    expect(acknowledgeInList(list, 'zz', { acknowledged: false })).toBe(list);
   });
 });
 

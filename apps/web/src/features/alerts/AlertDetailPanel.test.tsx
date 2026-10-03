@@ -288,6 +288,39 @@ describe('fallo del acuse que sobrevive al cierre del panel', () => {
   });
 });
 
+describe('acuse optimista y campana', () => {
+  it('el contador de la campana baja al confirmar, sin esperar al servidor', async () => {
+    resetDb('critico');
+    const id = criticalId();
+    const openBefore = db.alerts.filter((a) => !a.acknowledged).length;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.post('*/api/v1/alerts/:id/ack', async ({ params }) => {
+        await gate;
+        const alert = db.alerts.find((a) => a.alert_id === String(params.id));
+        if (!alert) return HttpResponse.json({ error: { code: 'NOT_FOUND', message: 'x' } }, { status: 404 });
+        Object.assign(alert, { acknowledged: true, acknowledged_by: 'Administración Demo', acknowledged_at: new Date().toISOString() });
+        return HttpResponse.json(alert);
+      }),
+    );
+    const panel = await openDetail('admin', id);
+    await screen.findByRole('link', { name: new RegExp(`^Alertas: ${openBefore} sin revisar`) });
+    await confirmAck(panel);
+    await waitFor(() => expect(fact(panel, 'Estado')).toHaveTextContent('Revisada'));
+    // El servidor sigue retenido: solo la actualización optimista puede haber bajado el contador.
+    expect(
+      await screen.findByRole('link', { name: new RegExp(`^Alertas: ${openBefore - 1} sin revisar`) }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      release();
+    });
+    await panel.findByText('Administración Demo');
+  });
+});
+
 describe('acuse con respuesta fuera de contrato', () => {
   it('si el servidor acusa pero responde otra cosa, no se dice que falló y la alerta queda revisada', async () => {
     resetDb('critico');

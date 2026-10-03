@@ -1,7 +1,7 @@
 .shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   grid-template-rows: 56px 1fr;
   grid-template-areas: 'header header' 'nav main';
 }
@@ -26,8 +26,9 @@
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-.brand { font-weight: 700; }
-.user { display: flex; align-items: center; gap: var(--space-3); color: var(--text-muted); }
+.brand { font-weight: 700; white-space: nowrap; }
+.header { min-width: 0; }
+.user { display: flex; align-items: center; gap: var(--space-3); color: var(--text-muted); min-width: 0; }
 .nav {
   grid-area: nav;
   background: var(--surface);
@@ -73,7 +74,7 @@
 .bell[data-critical] .badge { background: var(--status-critical-fg); }
 
 @media (max-width: 1023px) {
-  .shell { grid-template-columns: 72px 1fr; }
+  .shell { grid-template-columns: 72px minmax(0, 1fr); }
   .label {
     position: absolute;
     width: 1px;
@@ -87,7 +88,7 @@
 
 @media (max-width: 767px) {
   .shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 56px 1fr auto;
     grid-template-areas: 'header' 'main' 'nav';
   }
@@ -101,4 +102,15 @@
   .nav ul { grid-auto-flow: column; grid-auto-columns: minmax(56px, 1fr); }
   .main { padding: var(--space-4); }
   .userName { display: none; }
+  .header { gap: var(--space-2); padding: 0 var(--space-2); }
+  .user { gap: var(--space-1); }
+  .btnText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .iconButton { padding: 0; min-width: 44px; }
 }

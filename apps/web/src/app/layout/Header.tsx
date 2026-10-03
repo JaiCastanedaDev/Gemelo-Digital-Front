@@ -31,9 +31,9 @@ export function Header({ connection }: { connection: ConnectionKind }) {
           {name}
           {session && ` · ${ROLE_LABEL[session.claims.role]}`}
         </span>
-        <Button variant="secondary" onClick={() => void handleLogout()}>
+        <Button variant="secondary" className={styles.iconButton} onClick={() => void handleLogout()}>
           <LogOut aria-hidden="true" size={18} />
-          Cerrar sesión
+          <span className={styles.btnText}>Cerrar sesión</span>
         </Button>
       </div>
     </header>

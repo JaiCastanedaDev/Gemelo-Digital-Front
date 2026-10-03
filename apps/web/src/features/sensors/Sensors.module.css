@@ -41,3 +41,5 @@
 }
 .tableWrap:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .stack { display: grid; gap: var(--space-4); min-width: 0; }
+.stack > * { min-width: 0; }
+.stack { grid-template-columns: minmax(0, 1fr); }

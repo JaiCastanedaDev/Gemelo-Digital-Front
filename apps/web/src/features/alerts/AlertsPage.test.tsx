@@ -95,4 +95,16 @@ describe('filtros de sensor y fechas', () => {
     await openAlerts('admin', '/alertas?desde=2026-10-05&hasta=2026-10-01');
     expect(screen.getByText('La fecha inicial es posterior a la final; no se aplica el filtro de fechas.')).toBeInTheDocument();
   });
+
+  it('un sensor activo ausente del resultado sigue seleccionado y se puede quitar', async () => {
+    resetDb('critico');
+    const services = createTestServices();
+    await loginAs(services, 'admin');
+    renderApp(services, '/alertas?sensor=zzz-unknown&nivel=CRITICAL');
+    const select = await screen.findByRole('combobox', { name: 'Sensor' });
+    expect(select).toHaveValue('zzz-unknown');
+    fireEvent.change(select, { target: { value: '' } });
+    expect(await screen.findByRole('combobox', { name: 'Sensor' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Nivel' })).toHaveValue('CRITICAL');
+  });
 });

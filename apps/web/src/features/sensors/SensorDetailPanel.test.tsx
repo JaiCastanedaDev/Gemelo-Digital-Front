@@ -131,4 +131,22 @@ describe('SensorDetailPanel', () => {
     ).toBeInTheDocument();
     expect(panel.getByRole('img', { name: /Serie de/ })).toBeInTheDocument();
   });
+
+  it('con un tramo fallido y el resto vacío avisa del fallo además de no mostrar lecturas', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/sensors/:id/data', () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ error: { code: 'X', message: 'falla' } }, { status: 500 })
+          : HttpResponse.json([]);
+      }),
+    );
+    const panel = await open('water-main');
+    expect(
+      await panel.findByText('No se pudieron cargar algunas lecturas; la gráfica puede estar incompleta.'),
+    ).toBeInTheDocument();
+    expect(panel.getByText('Sin lecturas en este rango.')).toBeInTheDocument();
+    expect(panel.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+  });
 });

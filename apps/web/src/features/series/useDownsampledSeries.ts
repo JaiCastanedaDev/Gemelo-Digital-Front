@@ -4,6 +4,8 @@ import { handleDownsample, type DownsampleRequest, type DownsampleResponse } fro
 
 type Pending = { request: DownsampleRequest; resolve: (series: SeriesMap) => void };
 
+const EMPTY: SeriesMap = {};
+
 let worker: Worker | null = null;
 let workerBroken = false;
 let nextId = 1;
@@ -52,14 +54,16 @@ export function useDownsampledSeries(
   series: SeriesMap,
   strategy: DownsampleStrategy,
   target: number = TARGET_POINTS,
-): { series: SeriesMap; pending: boolean } {
+  /** Identifica el origen de la serie (sensor+rango): una salida previa solo se conserva con la misma clave. */
+  resetKey = '',
+): { series: SeriesMap; pending: boolean; refreshing?: boolean } {
   const needs = Object.values(series).some((points) => points.length > target);
   const useWorker = needs && workerAvailable();
   const syncResult = useMemo(
     () => (needs && !useWorker ? downsampleSeries(series, strategy, target) : null),
     [needs, useWorker, series, strategy, target],
   );
-  const [result, setResult] = useState<{ input: SeriesMap; output: SeriesMap } | null>(null);
+  const [result, setResult] = useState<{ input: SeriesMap; output: SeriesMap; key: string; strategy: DownsampleStrategy } | null>(null);
 
   useEffect(() => {
     if (!useWorker) return;
@@ -68,7 +72,7 @@ export function useDownsampledSeries(
     pending.set(request.id, {
       request,
       resolve: (output) => {
-        if (!cancelled) setResult({ input: series, output });
+        if (!cancelled) setResult({ input: series, output, key: resetKey, strategy });
       },
     });
     try {
@@ -81,10 +85,14 @@ export function useDownsampledSeries(
       cancelled = true;
       pending.delete(request.id);
     };
-  }, [useWorker, series, strategy, target]);
+    }, [useWorker, series, strategy, target, resetKey]);
 
   if (!needs) return { series, pending: false };
   if (syncResult) return { series: syncResult, pending: false };
   if (result && result.input === series) return { series: result.output, pending: false };
-  return { series: result?.output ?? {}, pending: true };
+  // Mientras llega la nueva reducción se conserva la anterior de la misma serie para no vaciar la gráfica.
+  if (result && result.key === resetKey && result.strategy === strategy) {
+    return { series: result.output, pending: false, refreshing: true };
+  }
+  return { series: EMPTY, pending: true };
 }

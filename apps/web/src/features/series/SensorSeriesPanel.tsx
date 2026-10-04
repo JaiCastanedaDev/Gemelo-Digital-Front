@@ -32,7 +32,7 @@ interface SensorSeriesPanelProps {
 export function SensorSeriesPanel({ sensor, range, onRangeChange, markers = NO_MARKERS }: SensorSeriesPanelProps) {
   const data = useSensorReadings(sensor.sensor_id, range);
   const raw = useMemo(() => readingsToSeries(data.readings, data.window), [data.readings, data.window]);
-  const downsampled = useDownsampledSeries(raw, strategyForSensorType(sensor.sensor_type));
+  const downsampled = useDownsampledSeries(raw, strategyForSensorType(sensor.sensor_type), undefined, `${sensor.sensor_id}|${range}`);
   const [showTable, setShowTable] = useState(false);
 
   const chartSeries = useMemo(
@@ -56,6 +56,15 @@ export function SensorSeriesPanel({ sensor, range, onRangeChange, markers = NO_M
   );
   const change = sensor.sensor_type === 'crack_meter' ? measuredChange(raw.width ?? []) : null;
   const smaller = shorterRange(range);
+
+  const partialNotice = data.partialError && (
+    <div className={styles.error} role="alert">
+      <p>No se pudieron cargar algunas lecturas; la gráfica puede estar incompleta.</p>
+      <Button variant="secondary" onClick={data.refetch}>
+        Reintentar
+      </Button>
+    </div>
+  );
 
   let body;
   if (data.isPending || downsampled.pending) {
@@ -85,14 +94,6 @@ export function SensorSeriesPanel({ sensor, range, onRangeChange, markers = NO_M
   } else {
     body = (
       <>
-        {data.partialError && (
-          <div className={styles.error} role="alert">
-            <p>No se pudieron cargar algunas lecturas; la gráfica puede estar incompleta.</p>
-            <Button variant="secondary" onClick={data.refetch}>
-              Reintentar
-            </Button>
-          </div>
-        )}
         <EChart option={option} label={`Serie de ${sensor.name}, ${RANGE_LABEL[range]}`} />
         {change !== null && (
           <p className={styles.change}>
@@ -115,6 +116,7 @@ export function SensorSeriesPanel({ sensor, range, onRangeChange, markers = NO_M
         <h3>Lecturas</h3>
         <RangeSelector value={range} onChange={onRangeChange} />
       </div>
+      {!data.isPending && !downsampled.pending && partialNotice}
       {body}
     </section>
   );

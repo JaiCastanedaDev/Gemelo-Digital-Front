@@ -1,5 +1,5 @@
 import type { SeriesMap } from '@gd/domain';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleDownsample, type DownsampleRequest } from './downsampleTask';
@@ -101,5 +101,54 @@ describe('useDownsampledSeries', () => {
     await waitFor(() => expect(result.current.pending).toBe(false));
     expect(posted.length).toBeGreaterThanOrEqual(2);
     expect(result.current.series.x).toHaveLength(1500);
+  });
+
+  describe('conserva la salida previa mientras se recalcula', () => {
+    let release: (() => void)[] = [];
+    function install() {
+      release = [];
+      class GatedWorker {
+        onmessage: ((event: MessageEvent) => void) | null = null;
+        onerror: (() => void) | null = null;
+        postMessage(request: DownsampleRequest) {
+          release.push(() => this.onmessage?.({ data: handleDownsample(request) } as MessageEvent));
+        }
+        terminate() {}
+      }
+      globalThis.Worker = GatedWorker as unknown as typeof Worker;
+    }
+    type Props = { s: SeriesMap; k: string };
+
+    it('una serie nueva de la misma fuente no vuelve a pending', async () => {
+      install();
+      const { result, rerender } = renderHook(({ s, k }: Props) => useDownsampledSeries(s, 'lttb', undefined, k), {
+        initialProps: { s: longSeries(10_000), k: 'a|7d' } as Props,
+      });
+      expect(result.current.pending).toBe(true);
+      await waitFor(() => expect(release).toHaveLength(1));
+      act(() => release[0]!());
+      await waitFor(() => expect(result.current.pending).toBe(false));
+      const previous = result.current.series;
+      rerender({ s: longSeries(10_000), k: 'a|7d' });
+      expect(result.current.pending).toBe(false);
+      expect(result.current.series).toBe(previous);
+      await waitFor(() => expect(release).toHaveLength(2));
+      act(() => release[1]!());
+      await waitFor(() => expect(result.current.series).not.toBe(previous));
+      expect(result.current.pending).toBe(false);
+    });
+
+    it('cambiar la clave (otro sensor o rango) vuelve a pending', async () => {
+      install();
+      const { result, rerender } = renderHook(({ s, k }: Props) => useDownsampledSeries(s, 'lttb', undefined, k), {
+        initialProps: { s: longSeries(10_000), k: 'a|7d' } as Props,
+      });
+      await waitFor(() => expect(release).toHaveLength(1));
+      act(() => release[0]!());
+      await waitFor(() => expect(result.current.pending).toBe(false));
+      rerender({ s: longSeries(10_000), k: 'b|7d' });
+      expect(result.current.pending).toBe(true);
+      expect(result.current.series).toEqual({});
+    });
   });
 });

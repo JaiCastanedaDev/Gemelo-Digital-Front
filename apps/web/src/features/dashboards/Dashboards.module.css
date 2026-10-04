@@ -27,5 +27,5 @@
 .variation[data-direction='down'] { color: var(--status-ok-fg); }
 .zone { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .zone strong { min-width: 0; overflow-wrap: anywhere; }
-.zoneLink { min-height: 44px; display: inline-flex; align-items: center; color: var(--accent); font-weight: 600; }
+.zone .zoneLink { min-height: 44px; display: inline-flex; align-items: center; color: var(--accent); font-weight: 600; }
 .empty { color: var(--text-muted); margin: 0; }

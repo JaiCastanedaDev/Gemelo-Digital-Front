@@ -1,7 +1,7 @@
 import type { AlertResidente } from '@gd/api';
 import { sortAlertsForInbox } from '@gd/domain';
 import { POLL_INTERVALS_MS, useAlerts } from '@gd/query';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useSession } from '../../app/session/SessionProvider';
 import { DataState } from '../../ui/DataState';
@@ -22,6 +22,13 @@ export function AlertsPage() {
   const role = session?.claims.role ?? 'RESIDENTE';
   const query = useAlerts(role, apiFilters(view));
 
+  // Siempre incluye el sensor activo: si no aparece en el resultado actual, el filtro debe seguir visible y poder quitarse.
+  const sensorOptions = useMemo(() => {
+    const ids = new Set((query.data?.data ?? []).map((a) => a.sensor_id));
+    if (view.sensorId) ids.add(view.sensorId);
+    return [...ids].sort();
+  }, [query.data, view.sensorId]);
+
   const closeDetail = useCallback(() => {
     setParams(
       (previous) => {
@@ -35,7 +42,6 @@ export function AlertsPage() {
 
   if (!session) return null;
 
-  const sensorOptions = [...new Set((query.data?.data ?? []).map((a) => a.sensor_id))].sort();
 
   return (
     <div className={styles.page}>
